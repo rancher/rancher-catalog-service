@@ -2,8 +2,8 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/prachidamle/catalogservice/manager"
-	"github.com/prachidamle/catalogservice/service"
+	"github.com/rancher/rancher-catalog-service/manager"
+	"github.com/rancher/rancher-catalog-service/service"
 	"net/http"
 )
 

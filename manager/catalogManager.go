@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/prachidamle/catalogservice/model"
+	"github.com/rancher/rancher-catalog-service/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -41,7 +41,7 @@ func SetEnv() {
 			log.SetOutput(output)
 		}
 	}
-	
+
 	textFormatter := &log.TextFormatter{
 		FullTimestamp: true,
 	}
@@ -198,7 +198,7 @@ func ReadTemplateVersion(path string) model.Template {
 				newTemplate.Category = parentMetadata.Category
 				newTemplate.Description = parentMetadata.Description
 				newTemplate.DefaultVersion = parentMetadata.DefaultVersion
-			}else {
+			} else {
 				log.Debugf("Could not find the parent metadata %s", parentPath)
 			}
 		}
@@ -210,7 +210,7 @@ func ReadTemplateVersion(path string) model.Template {
 			parentMetadata, ok := Catalog[parentPath]
 			if ok {
 				newTemplate.IconLink = parentMetadata.IconLink
-			}else {
+			} else {
 				log.Debugf("Could not find the parent metadata %s", parentPath)
 			}
 		}

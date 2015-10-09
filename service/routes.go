@@ -25,7 +25,7 @@ func NewRouter() *mux.Router {
 			Handler(route.HandlerFunc)
 
 	}
-	
+
 	router.GetRoute("RefreshCatalog").Queries("refresh", "")
 
 	return router

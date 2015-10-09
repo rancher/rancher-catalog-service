@@ -2,12 +2,12 @@ package service
 
 import (
 	"encoding/json"
-	"github.com/gorilla/mux"
-	"github.com/prachidamle/catalogservice/manager"
-	"github.com/prachidamle/catalogservice/model"
-	"github.com/rancher/go-rancher/client"
-	"net/http"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/mux"
+	"github.com/rancher/go-rancher/client"
+	"github.com/rancher/rancher-catalog-service/manager"
+	"github.com/rancher/rancher-catalog-service/model"
+	"net/http"
 )
 
 func ListTemplates(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := vars["templateId"] + "/" + vars["versionId"]
 	log.Debugf("Request to load details for template version: %s", path)
-	
+
 	template := manager.ReadTemplateVersion(path)
 	template.VersionLinks = PopulateTemplateLinks(r, &template)
 	PopulateResource(r, "template", template.Path, &template.Resource)
