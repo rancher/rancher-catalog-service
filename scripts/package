@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+. ./scripts/common
+
+mkdir -p dist/artifacts
+tar cvJf dist/artifacts/$(basename $BIN).tar.xz -C $(dirname $BIN) .

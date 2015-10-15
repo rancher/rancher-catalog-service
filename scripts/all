@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+./scripts/build
+./scripts/test
+#./scripts/validate
+./scripts/package

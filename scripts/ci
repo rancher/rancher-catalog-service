@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+if [ ! -x "$(which dapper)" ] ;then
+    go get github.com/ibuildthecloud/dapper
+    PATH=$GOPATH/bin:${PATH}
+fi
+docker version >/dev/null 2>&1 || wrapdocker || docker version
+dapper all

@@ -1,0 +1,2 @@
+BIN=bin/rancher-catalog-service
+MAIN=main.go

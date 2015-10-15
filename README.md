@@ -13,6 +13,24 @@ Design
 
 * The UI integrated with the service will enable the user to view the templates in a catalog format and also launch a template to a specified rancher deployment.
 
+Building
+========
+
+This project uses [dapper](https://github.com/ibuildthecloud/dapper).  Install dapper first
+
+    go get github.com/ibuildthecloud/dapper
+
+```sh
+# Compile
+dapper build
+
+# Run tests
+dapper test
+
+# Run everything
+dapper all
+```
+
 Contact
 ========
 For bugs, questions, comments, corrections, suggestions, etc., open an issue in
