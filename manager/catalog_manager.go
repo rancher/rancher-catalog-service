@@ -3,17 +3,20 @@ package manager
 import (
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-catalog-service/model"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
-	"time"
 	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"gopkg.in/yaml.v2"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/rancher/rancher-catalog-service/model"
 )
 
 var (
@@ -53,6 +56,11 @@ func SetEnv() {
 		err := "Halting Catalog service, Catalog github repo url not provided"
 		log.Fatal(err)
 		fmt.Errorf(err)
+	}
+
+	// Shutdown when parent dies
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, syscall.PR_SET_PDEATHSIG, uintptr(syscall.SIGTERM), 0); err != 0 {
+		log.Fatal("Failed to set parent death sinal, err")
 	}
 }
 
