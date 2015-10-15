@@ -68,4 +68,11 @@ var routes = Routes{
 		"/v1/templates",
 		RefreshCatalog,
 	},
+	//http://<server_ip>:8088/v1/upgrades/<template_uuid>
+	Route{
+		"GetNewTemplateVersions",
+		"GET",
+		"/v1/upgradeinfo/{templateUUID}",
+		GetUpgradeInfo,
+	},
 }

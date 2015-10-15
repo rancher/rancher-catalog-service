@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"strconv"
 )
 
 var (
@@ -23,6 +24,7 @@ var (
 	metadataFolder    = regexp.MustCompile(`^DATA/templates/[^/]+$`)
 	refreshReqChannel = make(chan int, 1)
 	Catalog           map[string]model.Template
+	UUIDToPath		  map[string]string
 )
 
 const catalogRoot string = "./DATA/templates/"
@@ -61,7 +63,7 @@ func Init() {
 	} else {
 		pullCatalog()
 	}
-
+	UUIDToPath = make(map[string]string)
 	Catalog = make(map[string]model.Template)
 	filepath.Walk(catalogRoot, walkCatalog)
 
@@ -130,7 +132,14 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 		} else {
 			for _, subfile := range dirList {
 				if subfile.IsDir() {
-					newTemplate.VersionLinks[subfile.Name()] = f.Name() + "/" + subfile.Name()
+					//read the subversion config.yml file into a template
+					subTemplate := model.Template{}
+					readTemplateConfig(path + "/" + subfile.Name(), &subTemplate)
+					if(subTemplate.UUID != ""){
+						UUIDToPath[subTemplate.UUID] = f.Name() + "/" + subfile.Name()
+						log.Debugf("UUIDToPath map: %v", UUIDToPath)
+					}
+					newTemplate.VersionLinks[subTemplate.Version] = f.Name() + "/" + subfile.Name()
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 					newTemplate.IconLink = f.Name() + "/" + subfile.Name()
 				}
@@ -158,9 +167,13 @@ func ReadTemplateVersion(path string) model.Template {
 
 			if strings.HasPrefix(subfile.Name(), "config.yml") {
 
-				readTemplateConfig(catalogRoot+path, &newTemplate)
 				foundConfig = true
-
+				readTemplateConfig(catalogRoot+path, &newTemplate)
+				if newTemplate.UUID != "" {
+					//store uuid -> path map
+					UUIDToPath[newTemplate.UUID] = path
+					log.Debugf("UUIDToPath map: %v", UUIDToPath)
+				}
 			} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 
 				newTemplate.IconLink = path + "/" + subfile.Name()
@@ -197,7 +210,7 @@ func ReadTemplateVersion(path string) model.Template {
 				newTemplate.Name = parentMetadata.Name
 				newTemplate.Category = parentMetadata.Category
 				newTemplate.Description = parentMetadata.Description
-				newTemplate.DefaultVersion = parentMetadata.DefaultVersion
+				newTemplate.Version = parentMetadata.Version
 			} else {
 				log.Debugf("Could not find the parent metadata %s", parentPath)
 			}
@@ -240,7 +253,10 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			template.Name = config["name"]
 			template.Category = config["category"]
 			template.Description = config["description"]
-			template.DefaultVersion = config["defaultVersion"]
+			template.Version = config["version"]
+			if config["uuid"] != ""{
+				template.UUID = config["uuid"]
+			}
 		}
 	}
 }
@@ -257,4 +273,51 @@ func readFile(relativePath string, fileName string) *[]byte {
 		return nil
 	}
 	return &composeBytes
+}
+
+
+func GetNewTemplateVersions(templateUUID string) model.Template {
+	templateMetadata := model.Template{}
+	path := UUIDToPath[templateUUID]
+	if path != "" {
+		//refresh the catalog and sync any new changes
+		RefreshCatalog()
+		
+		//find the base template metadata name
+		tokens := strings.Split(path, "/")
+		parentPath := tokens[0]
+		cVersion := tokens[1]
+		currentVersion, err := strconv.Atoi(cVersion)
+		
+		if err != nil{
+			log.Debugf("Error %v reading Current Version from path: %s for uuid: %s", err, path, templateUUID)
+		}else {
+			templateMetadata, ok := Catalog[parentPath]
+			if ok {
+				log.Debugf("Template found by uuid: %s", templateUUID)
+				copyOfversionLinks := make(map[string]string)
+				for key, value := range templateMetadata.VersionLinks {
+					if value != path {
+						otherVersionTokens := strings.Split(value, "/")
+						oVersion := otherVersionTokens[1]
+						otherVersion, err := strconv.Atoi(oVersion)
+						
+						if(err == nil && otherVersion > currentVersion) {
+							copyOfversionLinks[key] = value
+						}
+					}else {
+						templateMetadata.Version = key
+					}
+				}
+				templateMetadata.VersionLinks = copyOfversionLinks
+				return templateMetadata
+			}else {
+				log.Debugf("Template metadata not found by uuid: %s", templateUUID)
+			}
+		}
+	}else {
+		log.Debugf("Template  path not found by uuid: %s", templateUUID)
+	}
+	
+	return templateMetadata
 }

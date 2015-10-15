@@ -5,9 +5,10 @@ import "github.com/rancher/go-rancher/client"
 type Template struct {
 	client.Resource
 	Name           string            `json:"name"`
+	UUID 		   string			 `json:"uuid"`
 	Category       string            `json:"category"`
 	Description    string            `json:"description"`
-	DefaultVersion string            `json:"defaultVersion"`
+	Version        string            `json:"version"`
 	IconLink       string            `json:"iconLink"`
 	VersionLinks   map[string]string `json:"versionLinks"`
 	DockerCompose  string            `json:"dockerCompose"`
