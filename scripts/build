@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+. ./scripts/common
+
+mkdir -p $(dirname $BIN)
+echo Building $BIN
+godep go build -o $BIN $MAIN

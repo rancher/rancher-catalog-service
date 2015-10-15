@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+fmt()
+{
+    local files=$(gofmt -l . | grep -v 'Godeps')
+
+    if [ -n "$files" ]; then
+        echo Failed gofmt
+        echo $files
+        return 1
+    fi
+}
+
+lint()
+{
+    for i in $(find -type d | grep -vE '(Godep|.git)'); do
+        golint $i
+    done
+}
+
+vet()
+{
+    for i in $(find -type d | grep -vE '(Godep|.git|bin|dist|DATA|scripts)'); do
+        go vet $i
+    done
+}
+
+fmt || FAILED=1
+lint || FAILED=1
+vet || FAILED=1
+
+if [ "$FAILED" = 1 ]; then
+    echo Checks failed
+    exit 1
+fi

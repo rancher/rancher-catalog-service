@@ -1,0 +1,20 @@
+#!/bin/bash
+
+setpath()
+{
+    if [ -x "build/dapper/bin/dapper" ]; then
+        PATH=${PATH}:$(pwd)/build/dapper/bin/dapper
+    fi
+}
+
+setpath
+
+if [ ! -x "$(which dapper)" ]; then
+    (
+        GOPATH=$(pwd)/build/dapper
+        mkdir -p $GOPATH
+        go get github.com/ibuildthecloud/dapper
+    )
+fi
+
+exec dapper "$@"
