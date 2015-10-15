@@ -75,7 +75,7 @@ func startCatalogBackgroundPoll() {
 	ticker := time.NewTicker(time.Duration(*refreshInterval) * time.Second)
 	go func() {
 		for t := range ticker.C {
-			log.Infof("Running background Catalog Refresh Thread at time %s", t)
+			log.Debugf("Running background Catalog Refresh Thread at time %s", t)
 			RefreshCatalog()
 		}
 	}()
@@ -104,12 +104,12 @@ func cloneCatalog() {
 }
 
 func pullCatalog() {
-	log.Info("Pulling the catalog from github to sync any new changes")
+	log.Debug("Pulling the catalog from the repo to sync any new changes")
 
 	e := exec.Command("git", "-C", "./DATA", "pull", "origin", "master")
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from github repo %s", *catalogUrl, err)
+		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", *catalogUrl, err)
 	}
 }
 
@@ -194,9 +194,7 @@ func ReadTemplateVersion(path string) model.Template {
 				if err != nil {
 					log.Errorf("Error unmarshalling %s under template: %s, error: %v", subfile.Name(), path, err)
 				} else {
-					for key, _ := range RC {
-						newTemplate.Questions = RC[key].Questions
-					}
+					newTemplate.Questions = RC[".stack"].Questions
 				}
 			}
 		}

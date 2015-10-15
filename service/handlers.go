@@ -110,23 +110,23 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template, resourceTy
 	return copyOfversionLinks
 }
 
-func PopulateResource(r *http.Request, resourceType, resourceId string, resource *client.Resource) {
+func PopulateResource(r *http.Request, resourceType, resourceID string, resource *client.Resource) {
 	resource.Type = resourceType
 
-	selfLink := BuildURL(r, resourceType, resourceId)
+	selfLink := BuildURL(r, resourceType, resourceID)
 
 	resource.Links = map[string]string{
 		"self": selfLink,
 	}
 }
 
-func BuildURL(r *http.Request, resourceType, resourceId string) string {
+func BuildURL(r *http.Request, resourceType, resourceID string) string {
 
-	var scheme string = "http://"
-	var host string = r.Host
-	var pluralName string = resourceType + "s"
-	var version string = "v1-catalog"
+	var scheme = "http://"
+	var host = r.Host
+	var pluralName = resourceType + "s"
+	var version = "v1-catalog"
 	//get the url
-	return scheme + host + "/" + version + "/" + pluralName + "/" + resourceId
+	return scheme + host + "/" + version + "/" + pluralName + "/" + resourceID
 
 }
