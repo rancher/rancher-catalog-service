@@ -125,7 +125,7 @@ func BuildURL(r *http.Request, resourceType, resourceId string) string {
 	var scheme string = "http://"
 	var host string = r.Host
 	var pluralName string = resourceType + "s"
-	var version string = "v1"
+	var version string = "v1-catalog"
 	//get the url
 	return scheme + host + "/" + version + "/" + pluralName + "/" + resourceId
 
