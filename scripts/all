@@ -3,5 +3,5 @@ set -e
 
 ./scripts/build
 ./scripts/test
-#./scripts/validate
+./scripts/validate
 ./scripts/package
