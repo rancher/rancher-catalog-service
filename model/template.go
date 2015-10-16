@@ -2,10 +2,11 @@ package model
 
 import "github.com/rancher/go-rancher/client"
 
+//Template structure defines all properties that can be present in a template
 type Template struct {
 	client.Resource
 	Name           string            `json:"name"`
-	UUID 		   string			 `json:"uuid"`
+	UUID           string            `json:"uuid"`
 	Category       string            `json:"category"`
 	Description    string            `json:"description"`
 	Version        string            `json:"version"`
@@ -17,6 +18,7 @@ type Template struct {
 	Path           string            `json:"path"`
 }
 
+//TemplateCollection holds a collection of templates
 type TemplateCollection struct {
 	client.Collection
 	Data []Template `json:"data,omitempty"`

@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+//Route defines the properties of a go mux http route
 type Route struct {
 	Name        string
 	Method      string
@@ -12,8 +13,10 @@ type Route struct {
 	HandlerFunc http.HandlerFunc
 }
 
+//Routes array of Route defined
 type Routes []Route
 
+//NewRouter creates and configures a mux router
 func NewRouter() *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)

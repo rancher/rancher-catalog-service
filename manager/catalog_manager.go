@@ -20,18 +20,21 @@ import (
 )
 
 var (
-	catalogUrl        = flag.String("catalogUrl", "", "GitHub public repo url containing catalog")
+	catalogURL        = flag.String("catalogUrl", "", "GitHub public repo url containing catalog")
 	refreshInterval   = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from github repo")
 	logFile           = flag.String("logFile", "", "Log file")
 	debug             = flag.Bool("debug", false, "Debug")
 	metadataFolder    = regexp.MustCompile(`^DATA/templates/[^/]+$`)
 	refreshReqChannel = make(chan int, 1)
-	Catalog           map[string]model.Template
-	UUIDToPath		  map[string]string
+	//Catalog is the map storing template metadata in memory
+	Catalog map[string]model.Template
+	//UUIDToPath holds the mapping between a template UUID to the path in the repo
+	UUIDToPath map[string]string
 )
 
 const catalogRoot string = "./DATA/templates/"
 
+//SetEnv parses the command line args and sets the necessary variables
 func SetEnv() {
 	flag.Parse()
 
@@ -52,10 +55,10 @@ func SetEnv() {
 	}
 	log.SetFormatter(textFormatter)
 
-	if *catalogUrl == "" {
+	if *catalogURL == "" {
 		err := "Halting Catalog service, Catalog github repo url not provided"
 		log.Fatal(err)
-		fmt.Errorf(err)
+		_ = fmt.Errorf(err)
 	}
 
 	// Shutdown when parent dies
@@ -64,6 +67,7 @@ func SetEnv() {
 	}
 }
 
+//Init clones or pulls the catalog, starts background refresh thread
 func Init() {
 	_, err := os.Stat(catalogRoot)
 	if err != nil {
@@ -89,6 +93,7 @@ func startCatalogBackgroundPoll() {
 	}()
 }
 
+//RefreshCatalog syncs the catalog from the repo
 func RefreshCatalog() {
 	//put msg on channel, so that any other request can wait
 	select {
@@ -102,9 +107,9 @@ func RefreshCatalog() {
 }
 
 func cloneCatalog() {
-	log.Infof("Cloning the catalog from github url %s", *catalogUrl)
+	log.Infof("Cloning the catalog from github url %s", *catalogURL)
 	//git clone the github repo
-	e := exec.Command("git", "clone", *catalogUrl, "./DATA")
+	e := exec.Command("git", "clone", *catalogURL, "./DATA")
 	err := e.Run()
 	if err != nil {
 		log.Fatal("Failed to clone the catalog from github")
@@ -117,7 +122,7 @@ func pullCatalog() {
 	e := exec.Command("git", "-C", "./DATA", "pull", "origin", "master")
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", *catalogUrl, err)
+		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", *catalogURL, err)
 	}
 }
 
@@ -142,8 +147,8 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 				if subfile.IsDir() {
 					//read the subversion config.yml file into a template
 					subTemplate := model.Template{}
-					readTemplateConfig(path + "/" + subfile.Name(), &subTemplate)
-					if(subTemplate.UUID != ""){
+					readTemplateConfig(path+"/"+subfile.Name(), &subTemplate)
+					if subTemplate.UUID != "" {
 						UUIDToPath[subTemplate.UUID] = f.Name() + "/" + subfile.Name()
 						log.Debugf("UUIDToPath map: %v", UUIDToPath)
 					}
@@ -159,6 +164,7 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
+//ReadTemplateVersion reads the template version details
 func ReadTemplateVersion(path string) model.Template {
 
 	dirList, err := ioutil.ReadDir(catalogRoot + path)
@@ -260,7 +266,7 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			template.Category = config["category"]
 			template.Description = config["description"]
 			template.Version = config["version"]
-			if config["uuid"] != ""{
+			if config["uuid"] != "" {
 				template.UUID = config["uuid"]
 			}
 		}
@@ -281,23 +287,23 @@ func readFile(relativePath string, fileName string) *[]byte {
 	return &composeBytes
 }
 
-
+//GetNewTemplateVersions gets new versions of a template if available
 func GetNewTemplateVersions(templateUUID string) model.Template {
 	templateMetadata := model.Template{}
 	path := UUIDToPath[templateUUID]
 	if path != "" {
 		//refresh the catalog and sync any new changes
 		RefreshCatalog()
-		
+
 		//find the base template metadata name
 		tokens := strings.Split(path, "/")
 		parentPath := tokens[0]
 		cVersion := tokens[1]
 		currentVersion, err := strconv.Atoi(cVersion)
-		
-		if err != nil{
+
+		if err != nil {
 			log.Debugf("Error %v reading Current Version from path: %s for uuid: %s", err, path, templateUUID)
-		}else {
+		} else {
 			templateMetadata, ok := Catalog[parentPath]
 			if ok {
 				log.Debugf("Template found by uuid: %s", templateUUID)
@@ -307,23 +313,22 @@ func GetNewTemplateVersions(templateUUID string) model.Template {
 						otherVersionTokens := strings.Split(value, "/")
 						oVersion := otherVersionTokens[1]
 						otherVersion, err := strconv.Atoi(oVersion)
-						
-						if(err == nil && otherVersion > currentVersion) {
+
+						if err == nil && otherVersion > currentVersion {
 							copyOfversionLinks[key] = value
 						}
-					}else {
+					} else {
 						templateMetadata.Version = key
 					}
 				}
 				templateMetadata.VersionLinks = copyOfversionLinks
-				return templateMetadata
-			}else {
+			} else {
 				log.Debugf("Template metadata not found by uuid: %s", templateUUID)
 			}
 		}
-	}else {
+	} else {
 		log.Debugf("Template  path not found by uuid: %s", templateUUID)
 	}
-	
+
 	return templateMetadata
 }
