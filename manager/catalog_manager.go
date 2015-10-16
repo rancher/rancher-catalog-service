@@ -70,11 +70,15 @@ func SetEnv() {
 //Init clones or pulls the catalog, starts background refresh thread
 func Init() {
 	_, err := os.Stat(catalogRoot)
-	if err != nil {
-		cloneCatalog()
-	} else {
-		pullCatalog()
+	if err == nil {
+		//remove the existing repo
+		err := os.RemoveAll("./DATA/")
+		if err != nil {
+			log.Fatal("Cannot remove the existing catalog data folder ./DATA/", err)
+			_ = fmt.Errorf("Cannot remove the existing catalog data folder ./DATA/, error: " + err.Error())
+		}
 	}
+	cloneCatalog()
 	UUIDToPath = make(map[string]string)
 	Catalog = make(map[string]model.Template)
 	filepath.Walk(catalogRoot, walkCatalog)

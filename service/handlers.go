@@ -19,7 +19,7 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 	for _, value := range manager.Catalog {
 		log.Debugf("Found Template: %s", value.Name)
 		value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
-		PopulateResource(r, "template", value.Name, &value.Resource)
+		PopulateResource(r, "template", value.Path, &value.Resource)
 		resp.Data = append(resp.Data, value)
 	}
 
@@ -37,7 +37,7 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	templateMetadata, ok := manager.Catalog[path]
 	if ok {
 		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
-		PopulateResource(r, "template", templateMetadata.Name, &templateMetadata.Resource)
+		PopulateResource(r, "template", templateMetadata.Path, &templateMetadata.Resource)
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(templateMetadata)
 	} else {
