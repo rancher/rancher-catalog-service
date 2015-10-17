@@ -10,6 +10,7 @@ import (
 	"net/http"
 )
 
+//ListTemplates is a handler for route /templates and returns a collection of template metadata
 func ListTemplates(w http.ResponseWriter, r *http.Request) {
 	//read the catalog
 
@@ -28,6 +29,7 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//LoadTemplateMetadata returns template metadata for the provided templateId
 func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := vars["templateId"]
@@ -44,6 +46,7 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//LoadTemplateVersion returns template version details for the provided templateId/versionId
 func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
 	vars := mux.Vars(r)
@@ -57,6 +60,7 @@ func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(template)
 }
 
+//LoadImage returns template image
 func LoadImage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
@@ -64,24 +68,26 @@ func LoadImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+//RefreshCatalog will be doing a force catalog refresh
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
 	manager.RefreshCatalog()
 }
 
+//GetUpgradeInfo returns if any new versions are available for the given template uuid
 func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateUUID := vars["templateUUID"]
 	log.Infof("Request to get new template versions for uuid %s", templateUUID)
-	
+
 	templateMetadata := manager.GetNewTemplateVersions(templateUUID)
 	if templateMetadata.Name != "" {
 		log.Debugf("Template returned by uuid: %v", templateMetadata.VersionLinks)
 		log.Debugf("Found Template: %s", templateMetadata.Name)
 		upgradeInfo := model.UpgradeInfo{}
 		upgradeInfo.CurrentVersion = templateMetadata.Version
-		
-		upgradeInfo.NewVersionLinks =  make(map[string]string) 
+
+		upgradeInfo.NewVersionLinks = make(map[string]string)
 		upgradeInfo.NewVersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
 		//PopulateResource(r, "upgrade", templateMetadata.Name, &templateMetadata.Resource)
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
@@ -93,11 +99,13 @@ func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//PopulateCollection will populate any metadata for the resource collection
 func PopulateCollection(collection *client.Collection) {
 	collection.Type = "collection"
 	collection.ResourceType = "template"
 }
 
+//PopulateTemplateLinks will populate the links needed to load a template from the service
 func PopulateTemplateLinks(r *http.Request, template *model.Template, resourceType string) map[string]string {
 
 	copyOfversionLinks := make(map[string]string)
@@ -110,6 +118,7 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template, resourceTy
 	return copyOfversionLinks
 }
 
+//PopulateResource will populate any metadata for the resource
 func PopulateResource(r *http.Request, resourceType, resourceID string, resource *client.Resource) {
 	resource.Type = resourceType
 
@@ -120,6 +129,7 @@ func PopulateResource(r *http.Request, resourceType, resourceID string, resource
 	}
 }
 
+//BuildURL will generate the links needed for template versions/resource self links
 func BuildURL(r *http.Request, resourceType, resourceID string) string {
 
 	var scheme = "http://"
