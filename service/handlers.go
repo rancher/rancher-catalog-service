@@ -80,8 +80,8 @@ func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 	templateUUID := vars["templateUUID"]
 	log.Infof("Request to get new template versions for uuid %s", templateUUID)
 
-	templateMetadata := manager.GetNewTemplateVersions(templateUUID)
-	if templateMetadata.Name != "" {
+	templateMetadata, ok := manager.GetNewTemplateVersions(templateUUID)
+	if ok {
 		log.Debugf("Template returned by uuid: %v", templateMetadata.VersionLinks)
 		log.Debugf("Found Template: %s", templateMetadata.Name)
 		upgradeInfo := model.UpgradeInfo{}
