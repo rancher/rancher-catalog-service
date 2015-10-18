@@ -286,7 +286,7 @@ func readFile(relativePath string, fileName string) *[]byte {
 }
 
 //GetNewTemplateVersions gets new versions of a template if available
-func GetNewTemplateVersions(templateUUID string) model.Template {
+func GetNewTemplateVersions(templateUUID string) (model.Template, bool) {
 	templateMetadata := model.Template{}
 	path := UUIDToPath[templateUUID]
 	if path != "" {
@@ -320,13 +320,13 @@ func GetNewTemplateVersions(templateUUID string) model.Template {
 					}
 				}
 				templateMetadata.VersionLinks = copyOfversionLinks
-			} else {
-				log.Debugf("Template metadata not found by uuid: %s", templateUUID)
+				return templateMetadata, true
 			}
 		}
 	} else {
 		log.Debugf("Template  path not found by uuid: %s", templateUUID)
 	}
 
-	return templateMetadata
+	log.Debugf("Template metadata not found by uuid: %s", templateUUID)
+	return templateMetadata, false
 }
