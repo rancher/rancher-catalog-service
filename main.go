@@ -9,10 +9,12 @@ import (
 
 func main() {
 	log.Infof("Starting Rancher Catalog service")
-
-	manager.SetEnv()
-	manager.Init()
-
 	router := service.NewRouter()
-	log.Fatal(http.ListenAndServe(":8088", router))
+	handler := service.MuxWrapper{false, router}
+
+	go func() {
+		manager.SetEnv()
+		manager.Init()
+	}()
+	log.Fatal(http.ListenAndServe(":8088", &handler))
 }

@@ -1,9 +1,38 @@
 package service
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	"github.com/rancher/rancher-catalog-service/manager"
 	"net/http"
 )
+
+//MuxWrapper is a wrapper over the mux router that returns 503 until catalog is ready
+type MuxWrapper struct {
+	IsReady bool
+	Router  *mux.Router
+}
+
+func (httpWrapper *MuxWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	select {
+	case <-manager.CatalogReadyChannel:
+		httpWrapper.IsReady = true
+	default:
+	}
+
+	if httpWrapper.IsReady {
+		//delegate to the mux router
+		httpWrapper.Router.ServeHTTP(w, r)
+	} else {
+		log.Debugf("Service Unavailable")
+		httpWrapper.returnCode503(w, r)
+	}
+}
+
+func (httpWrapper *MuxWrapper) returnCode503(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusServiceUnavailable)
+	w.Write([]byte("Catalog Service is not yet available, please try again later"))
+}
 
 //Route defines the properties of a go mux http route
 type Route struct {
@@ -26,11 +55,8 @@ func NewRouter() *mux.Router {
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(route.HandlerFunc)
-
 	}
-
 	router.GetRoute("RefreshCatalog").Queries("refresh", "")
-
 	return router
 }
 
