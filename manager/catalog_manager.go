@@ -29,6 +29,8 @@ var (
 	Catalog map[string]model.Template
 	//UUIDToPath holds the mapping between a template UUID to the path in the repo
 	UUIDToPath map[string]string
+	//CatalogReadyChannel signals if the catalog is cloned and loaded in memmory
+	CatalogReadyChannel = make(chan int, 1)
 )
 
 const catalogRoot string = "./DATA/templates/"
@@ -79,6 +81,7 @@ func Init() {
 
 	//start a background timer to pull from the Catalog periodically
 	startCatalogBackgroundPoll()
+	CatalogReadyChannel <- 1
 }
 
 func startCatalogBackgroundPoll() {
@@ -108,9 +111,11 @@ func cloneCatalog() {
 	log.Infof("Cloning the catalog from github url %s", *catalogURL)
 	//git clone the github repo
 	e := exec.Command("git", "clone", *catalogURL, "./DATA")
+	e.Stdout = os.Stdout
+	e.Stderr = os.Stderr
 	err := e.Run()
 	if err != nil {
-		log.Fatal("Failed to clone the catalog from github")
+		log.Fatal("Failed to clone the catalog from github", err.Error())
 	}
 }
 
@@ -145,7 +150,7 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 				if subfile.IsDir() {
 					//read the subversion config.yml file into a template
 					subTemplate := model.Template{}
-					readTemplateConfig(path+"/"+subfile.Name(), &subTemplate)
+					readRancherCompose(f.Name()+"/"+subfile.Name(), &subTemplate)
 					if subTemplate.UUID != "" {
 						UUIDToPath[subTemplate.UUID] = f.Name() + "/" + subfile.Name()
 						log.Debugf("UUIDToPath map: %v", UUIDToPath)
@@ -173,20 +178,10 @@ func ReadTemplateVersion(path string) model.Template {
 		log.Errorf("Error reading template at path: %s, error: %v", path, err)
 	} else {
 
-		var foundConfig, foundIcon bool
+		var foundIcon bool
 
 		for _, subfile := range dirList {
-
-			if strings.HasPrefix(subfile.Name(), "config.yml") {
-
-				foundConfig = true
-				readTemplateConfig(catalogRoot+path, &newTemplate)
-				if newTemplate.UUID != "" {
-					//store uuid -> path map
-					UUIDToPath[newTemplate.UUID] = path
-					log.Debugf("UUIDToPath map: %v", UUIDToPath)
-				}
-			} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
+			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 
 				newTemplate.IconLink = path + "/" + subfile.Name()
 				foundIcon = true
@@ -197,35 +192,9 @@ func ReadTemplateVersion(path string) model.Template {
 
 			} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
 
-				composeBytes := readFile(catalogRoot+path, subfile.Name())
-				newTemplate.RancherCompose = string(*composeBytes)
-
-				//read the questions section
-				RC := make(map[string]model.RancherCompose)
-				err := yaml.Unmarshal(*composeBytes, &RC)
-				if err != nil {
-					log.Errorf("Error unmarshalling %s under template: %s, error: %v", subfile.Name(), path, err)
-				} else {
-					newTemplate.Questions = RC[".stack"].Questions
-				}
+				readRancherCompose(path, &newTemplate)
 			}
 		}
-
-		if !foundConfig {
-			//use the parent config
-			tokens := strings.Split(path, "/")
-			parentPath := tokens[0]
-			parentMetadata, ok := Catalog[parentPath]
-			if ok {
-				newTemplate.Name = parentMetadata.Name
-				newTemplate.Category = parentMetadata.Category
-				newTemplate.Description = parentMetadata.Description
-				newTemplate.Version = parentMetadata.Version
-			} else {
-				log.Debugf("Could not find the parent metadata %s", parentPath)
-			}
-		}
-
 		if !foundIcon {
 			//use the parent icon
 			tokens := strings.Split(path, "/")
@@ -269,6 +238,32 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			}
 		}
 	}
+}
+
+func readRancherCompose(relativePath string, newTemplate *model.Template) {
+
+	composeBytes := readFile(catalogRoot+relativePath, "rancher-compose.yml")
+	newTemplate.RancherCompose = string(*composeBytes)
+
+	//read the questions section
+	RC := make(map[string]model.RancherCompose)
+	err := yaml.Unmarshal(*composeBytes, &RC)
+	if err != nil {
+		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", relativePath, err)
+	} else {
+		newTemplate.Questions = RC[".catalog"].Questions
+		newTemplate.Name = RC[".catalog"].Name
+		newTemplate.UUID = RC[".catalog"].UUID
+		newTemplate.Description = RC[".catalog"].Description
+		newTemplate.Version = RC[".catalog"].Version
+
+		if newTemplate.UUID != "" {
+			//store uuid -> path map
+			UUIDToPath[newTemplate.UUID] = relativePath
+			log.Debugf("UUIDToPath map: %v", UUIDToPath)
+		}
+	}
+
 }
 
 func readFile(relativePath string, fileName string) *[]byte {
