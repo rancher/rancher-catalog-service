@@ -16,20 +16,110 @@ import (
 
 const headerForwardedProto string = "X-Forwarded-Proto"
 
+//ListCatalogs is a handler for route /catalogs and returns a collection of catalog metadata
+func ListCatalogs(w http.ResponseWriter, r *http.Request) {
+	catalogs := manager.ListAllCatalogs()
+	resp := manager.CatalogCollection{}
+
+	for _, value := range catalogs {
+		value.CatalogLink = BuildURL(r, "catalog", value.CatalogLink)
+		PopulateResource(r, "catalog", value.CatalogID, &value.Resource)
+		resp.Data = append(resp.Data, value)
+	}
+
+	PopulateCollection(&resp.Collection, "catalog")
+	w.Header().Add("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(resp)
+}
+
+//GetCatalog is a handler for route /catalog/{catalogID} and returns the specific catalog metadata
+func GetCatalog(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	catalogID := vars["catalogId"]
+	catalog, ok := manager.GetCatalog(catalogID)
+
+	if ok {
+		catalog.CatalogLink = BuildURL(r, "catalog", catalog.CatalogLink)
+		PopulateResource(r, "catalog", catalog.CatalogID, &catalog.Resource)
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(catalog)
+	} else {
+		log.Debugf("Cannot find catalog by catalogID: %s", catalogID)
+		http.NotFound(w, r)
+	}
+
+}
+
+//GetTemplatesForCatalog is a handler for listing templated under a given catalogID
+func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	catalogID := vars["catalogId"]
+
+	if catalogID != "" {
+		log.Debugf("Request to get templates for catalog %s", catalogID)
+		templates := manager.ListTemplatesForCatalog(catalogID)
+
+		rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
+		if rancherVersion != "" {
+			log.Debugf("Request to get all templates under catalog %s with minimumRancherVersion <= %s", catalogID, rancherVersion)
+		}
+
+		//read the catalog
+		resp := model.TemplateCollection{}
+		for _, value := range templates {
+			if rancherVersion != "" {
+				var err error
+				value.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &value)
+				if err != nil {
+					//cannot apply the filter, return empty set
+					break
+				}
+			}
+
+			//if no versions are present then just skip the template
+			if len(value.VersionLinks) == 0 {
+				continue
+			}
+
+			log.Debugf("Found Template: %s", value.Name)
+
+			value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
+			PopulateResource(r, "template", value.Path, &value.Resource)
+			resp.Data = append(resp.Data, value)
+		}
+
+		PopulateCollection(&resp.Collection, "template")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(resp)
+
+	}
+
+}
+
 //ListTemplates is a handler for route /templates and returns a collection of template metadata
 func ListTemplates(w http.ResponseWriter, r *http.Request) {
+
+	var templates []model.Template
+	catalogID := r.URL.Query().Get("catalog")
+	if catalogID != "" {
+		log.Debugf("Request to get templates for catalog %s", catalogID)
+		templates = manager.ListTemplatesForCatalog(catalogID)
+	} else {
+		templates = manager.ListAllTemplates()
+	}
 
 	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
 	if rancherVersion != "" {
 		log.Debugf("Request to get all templates with minimumRancherVersion <= %s", rancherVersion)
 	} else {
-		log.Debug("Request to list All Templates in the Catalog")
+		log.Debug("Request to list all templates in the Catalog")
 	}
 
 	//read the catalog
 	resp := model.TemplateCollection{}
-	for _, value := range manager.Catalog {
-
+	for _, value := range templates {
 		if rancherVersion != "" {
 			var err error
 			value.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &value)
@@ -45,6 +135,7 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Debugf("Found Template: %s", value.Name)
+
 		value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
 		resp.Data = append(resp.Data, value)
 	}
@@ -88,9 +179,9 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 //LoadTemplateMetadata returns template metadata for the provided templateId
 func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := vars["templateId"]
+	path := vars["catalogId"] + "/" + vars["templateId"]
 	log.Debugf("Request to load metadata for template: %s", path)
-	templateMetadata, ok := manager.Catalog[path]
+	templateMetadata, ok := manager.GetTemplateMetadata(vars["catalogId"], vars["templateId"])
 	if ok {
 		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
 		api.GetApiContext(r).Write(&templateMetadata)
@@ -104,20 +195,26 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
 	vars := mux.Vars(r)
-	path := vars["templateId"] + "/" + vars["versionId"]
+	path := vars["catalogId"] + "/" + vars["templateId"] + "/" + vars["versionId"]
 	log.Debugf("Request to load details for template version: %s", path)
 
-	template := manager.ReadTemplateVersion(path)
-	template.VersionLinks = PopulateTemplateLinks(r, &template, "template")
-	PopulateResource(r, "template", template.Path, &template.Resource)
-	w.Header().Add("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(template)
+	template, ok := manager.ReadTemplateVersion(vars["catalogId"], vars["templateId"], vars["versionId"])
+	if ok {
+		template.VersionLinks = PopulateTemplateLinks(r, template, "template")
+		PopulateResource(r, "template", template.Path, &template.Resource)
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(template)
+	} else {
+		log.Debugf("Cannot find template: %s", path)
+		http.NotFound(w, r)
+	}
 }
 
 //LoadImage returns template image
 func LoadImage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
+	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
+	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
 	log.Debugf("Request to load Image: %s", path)
 	http.ServeFile(w, r, path)
 }
@@ -125,7 +222,8 @@ func LoadImage(w http.ResponseWriter, r *http.Request) {
 //LoadFile returns template image
 func LoadFile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
+	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
+	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
 	log.Debugf("Request to load file: %s", path)
 	http.ServeFile(w, r, path)
 }
@@ -133,14 +231,14 @@ func LoadFile(w http.ResponseWriter, r *http.Request) {
 //RefreshCatalog will be doing a force catalog refresh
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
-	manager.RefreshCatalog()
+	manager.RefreshAllCatalogs()
 }
 
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
 func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateUUID := vars["templateUUID"]
-	log.Infof("Request to get new template versions for uuid %s", templateUUID)
+	log.Debugf("Request to get new template versions for uuid %s", templateUUID)
 
 	templateMetadata, ok := manager.GetNewTemplateVersions(templateUUID)
 	if ok {
@@ -162,9 +260,9 @@ func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 //PopulateCollection will populate any metadata for the resource collection
-func PopulateCollection(collection *client.Collection) {
+func PopulateCollection(collection *client.Collection, resourceType string) {
 	collection.Type = "collection"
-	collection.ResourceType = "template"
+	collection.ResourceType = resourceType
 }
 
 //PopulateTemplateLinks will populate the links needed to load a template from the service
