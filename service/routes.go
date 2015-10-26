@@ -49,6 +49,7 @@ type Routes []Route
 func NewRouter() *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)
+
 	for _, route := range routes {
 		router.
 			Methods(route.Method).
@@ -57,6 +58,7 @@ func NewRouter() *mux.Router {
 			Handler(route.HandlerFunc)
 	}
 	router.GetRoute("RefreshCatalog").Queries("refresh", "")
+
 	return router
 }
 
@@ -70,25 +72,25 @@ var routes = Routes{
 	Route{
 		"LoadTemplateMetadata",
 		"GET",
-		"/v1-catalog/templates/{templateId}",
+		"/v1-catalog/templates/{catalogId}/{templateId}",
 		LoadTemplateMetadata,
 	},
 	Route{
 		"LoadTemplateVersion",
 		"GET",
-		"/v1-catalog/templates/{templateId}/{versionId}",
+		"/v1-catalog/templates/{catalogId}/{templateId}/{versionId}",
 		LoadTemplateVersion,
 	},
 	Route{
 		"LoadVersionImage",
 		"GET",
-		"/v1-catalog/images/{templateId}/{versionId}/{imageId}",
+		"/v1-catalog/images/{catalogId}/{templateId}/{versionId}/{imageId}",
 		LoadImage,
 	},
 	Route{
 		"LoadImage",
 		"GET",
-		"/v1-catalog/images/{templateId}/{imageId}",
+		"/v1-catalog/images/{catalogId}/{templateId}/{imageId}",
 		LoadImage,
 	},
 	Route{

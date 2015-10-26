@@ -12,12 +12,19 @@ import (
 
 //ListTemplates is a handler for route /templates and returns a collection of template metadata
 func ListTemplates(w http.ResponseWriter, r *http.Request) {
-	//read the catalog
+	var templates []model.Template
+	catalogID := r.URL.Query().Get("catalog")
+	if catalogID != "" {
+		log.Debugf("Request to get templates for catalog %s", catalogID)
+		templates = manager.ListTemplatesForCatalog(catalogID)
+	} else {
+		templates = manager.ListAllTemplates()
+	}
 
+	//read the catalog
 	log.Debug("Request to list Templates Catalog")
 	resp := model.TemplateCollection{}
-	for _, value := range manager.Catalog {
-		log.Debugf("Found Template: %s", value.Name)
+	for _, value := range templates {
 		value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
 		PopulateResource(r, "template", value.Path, &value.Resource)
 		resp.Data = append(resp.Data, value)
@@ -32,9 +39,9 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 //LoadTemplateMetadata returns template metadata for the provided templateId
 func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := vars["templateId"]
+	path := vars["catalogId"] + "/" + vars["templateId"]
 	log.Debugf("Request to load metadata for template: %s", path)
-	templateMetadata, ok := manager.Catalog[path]
+	templateMetadata, ok := manager.GetTemplateMetadata(vars["catalogId"], vars["templateId"])
 	if ok {
 		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
 		PopulateResource(r, "template", templateMetadata.Path, &templateMetadata.Resource)
@@ -50,11 +57,11 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
 	vars := mux.Vars(r)
-	path := vars["templateId"] + "/" + vars["versionId"]
+	path := vars["catalogId"] + "/" + vars["templateId"] + "/" + vars["versionId"]
 	log.Debugf("Request to load details for template version: %s", path)
 
-	template := manager.ReadTemplateVersion(path)
-	template.VersionLinks = PopulateTemplateLinks(r, &template, "template")
+	template := manager.ReadTemplateVersion(vars["catalogId"], vars["templateId"], vars["versionId"])
+	template.VersionLinks = PopulateTemplateLinks(r, template, "template")
 	PopulateResource(r, "template", template.Path, &template.Resource)
 	w.Header().Add("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(template)
@@ -71,14 +78,14 @@ func LoadImage(w http.ResponseWriter, r *http.Request) {
 //RefreshCatalog will be doing a force catalog refresh
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
-	manager.RefreshCatalog()
+	manager.RefreshAllCatalogs()
 }
 
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
 func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateUUID := vars["templateUUID"]
-	log.Infof("Request to get new template versions for uuid %s", templateUUID)
+	log.Debugf("Request to get new template versions for uuid %s", templateUUID)
 
 	templateMetadata, ok := manager.GetNewTemplateVersions(templateUUID)
 	if ok {
