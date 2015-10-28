@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	catalogURL        = flag.String("catalogUrl", "", "GitHub public repo url containing catalog")
-	refreshInterval   = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from github repo")
+	catalogURL        = flag.String("catalogUrl", "", "Git repo url containing catalog (such as a public GitHub repo url)")
+	refreshInterval   = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
 	logFile           = flag.String("logFile", "", "Log file")
 	debug             = flag.Bool("debug", false, "Debug")
 	metadataFolder    = regexp.MustCompile(`^DATA/templates/[^/]+$`)
@@ -57,7 +57,7 @@ func SetEnv() {
 	log.SetFormatter(textFormatter)
 
 	if *catalogURL == "" {
-		err := "Halting Catalog service, Catalog github repo url not provided"
+		err := "Halting Catalog service, Catalog git repo url not provided"
 		log.Fatal(err)
 		_ = fmt.Errorf(err)
 	}
@@ -108,14 +108,14 @@ func RefreshCatalog() {
 }
 
 func cloneCatalog() {
-	log.Infof("Cloning the catalog from github url %s", *catalogURL)
-	//git clone the github repo
+	log.Infof("Cloning the catalog from git url %s", *catalogURL)
+	//git clone the repo
 	e := exec.Command("git", "clone", *catalogURL, "./DATA")
 	e.Stdout = os.Stdout
 	e.Stderr = os.Stderr
 	err := e.Run()
 	if err != nil {
-		log.Fatal("Failed to clone the catalog from github", err.Error())
+		log.Fatal("Failed to clone the catalog from remote git repository", err.Error())
 	}
 }
 
@@ -125,7 +125,7 @@ func pullCatalog() {
 	e := exec.Command("git", "-C", "./DATA", "pull", "origin", "master")
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", *catalogURL, err)
+		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", *catalogURL, err)
 	}
 }
 
