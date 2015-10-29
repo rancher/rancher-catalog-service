@@ -10,6 +10,8 @@ import (
 	"net/http"
 )
 
+const headerForwardedProto string = "X-Forwarded-Proto"
+
 //ListTemplates is a handler for route /templates and returns a collection of template metadata
 func ListTemplates(w http.ResponseWriter, r *http.Request) {
 	//read the catalog
@@ -132,7 +134,13 @@ func PopulateResource(r *http.Request, resourceType, resourceID string, resource
 //BuildURL will generate the links needed for template versions/resource self links
 func BuildURL(r *http.Request, resourceType, resourceID string) string {
 
-	var scheme = "http://"
+	proto := r.Header.Get(headerForwardedProto)
+	var scheme string
+	if proto != "" {
+		scheme = proto + "://"
+	} else {
+		scheme = "http://"
+	}
 	var host = r.Host
 	var pluralName = resourceType + "s"
 	var version = "v1-catalog"
