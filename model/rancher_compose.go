@@ -23,9 +23,10 @@ type Question struct {
 //RancherCompose holds the questions array
 type RancherCompose struct {
 	//rancher.RancherConfig	`yaml:",inline"`
-	Name        string     `yaml:"name"`
-	UUID        string     `yaml:"uuid"`
-	Description string     `yaml:"description"`
-	Version     string     `yaml:"version"`
-	Questions   []Question `json:"questions" yaml:"questions,omitempty"`
+	Name                  string     `yaml:"name"`
+	UUID                  string     `yaml:"uuid"`
+	Description           string     `yaml:"description"`
+	Version               string     `yaml:"version"`
+	Questions             []Question `json:"questions" yaml:"questions,omitempty"`
+	MinimumRancherVersion string     `json:"minimumRancherVersion" yaml:"minimum_rancher_version,omitempty"`
 }

@@ -142,6 +142,7 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 
 		//list the folders under the root level
 		newTemplate.VersionLinks = make(map[string]string)
+		newTemplate.TemplateVersionRancherVersion = make(map[string]string)
 		dirList, err := ioutil.ReadDir(path)
 		if err != nil {
 			log.Errorf("Error reading directories at path: %s, error: %v", f.Name(), err)
@@ -150,12 +151,17 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 				if subfile.IsDir() {
 					//read the subversion config.yml file into a template
 					subTemplate := model.Template{}
-					readRancherCompose(f.Name()+"/"+subfile.Name(), &subTemplate)
-					if subTemplate.UUID != "" {
-						UUIDToPath[subTemplate.UUID] = f.Name() + "/" + subfile.Name()
-						log.Debugf("UUIDToPath map: %v", UUIDToPath)
+					err := readRancherCompose(f.Name()+"/"+subfile.Name(), &subTemplate)
+					if err == nil {
+						if subTemplate.UUID != "" {
+							UUIDToPath[subTemplate.UUID] = f.Name() + "/" + subfile.Name()
+							log.Debugf("UUIDToPath map: %v", UUIDToPath)
+						}
+						newTemplate.VersionLinks[subTemplate.Version] = f.Name() + "/" + subfile.Name()
+						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
+					} else {
+						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
 					}
-					newTemplate.VersionLinks[subTemplate.Version] = f.Name() + "/" + subfile.Name()
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 					newTemplate.IconLink = f.Name() + "/" + subfile.Name()
 				}
@@ -240,7 +246,7 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 	}
 }
 
-func readRancherCompose(relativePath string, newTemplate *model.Template) {
+func readRancherCompose(relativePath string, newTemplate *model.Template) error {
 
 	composeBytes := readFile(catalogRoot+relativePath, "rancher-compose.yml")
 	newTemplate.RancherCompose = string(*composeBytes)
@@ -250,19 +256,21 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) {
 	err := yaml.Unmarshal(*composeBytes, &RC)
 	if err != nil {
 		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", relativePath, err)
-	} else {
-		newTemplate.Questions = RC[".catalog"].Questions
-		newTemplate.Name = RC[".catalog"].Name
-		newTemplate.UUID = RC[".catalog"].UUID
-		newTemplate.Description = RC[".catalog"].Description
-		newTemplate.Version = RC[".catalog"].Version
-
-		if newTemplate.UUID != "" {
-			//store uuid -> path map
-			UUIDToPath[newTemplate.UUID] = relativePath
-			log.Debugf("UUIDToPath map: %v", UUIDToPath)
-		}
+		return err
 	}
+	newTemplate.Questions = RC[".catalog"].Questions
+	newTemplate.Name = RC[".catalog"].Name
+	newTemplate.UUID = RC[".catalog"].UUID
+	newTemplate.Description = RC[".catalog"].Description
+	newTemplate.Version = RC[".catalog"].Version
+	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
+
+	if newTemplate.UUID != "" {
+		//store uuid -> path map
+		UUIDToPath[newTemplate.UUID] = relativePath
+		log.Debugf("UUIDToPath map: %v", UUIDToPath)
+	}
+	return nil
 
 }
 
