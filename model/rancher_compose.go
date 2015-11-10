@@ -20,6 +20,11 @@ type Question struct {
 	InvalidChars string   `json:"invalidChars" yaml:"invalid_chars,omitempty"`
 }
 
+//Output holds the outputs of the template
+type Output struct {
+	URL string `json:"url" yaml:"url,omitempty"`
+}
+
 //RancherCompose holds the questions array
 type RancherCompose struct {
 	//rancher.RancherConfig	`yaml:",inline"`
@@ -29,4 +34,5 @@ type RancherCompose struct {
 	Version               string     `yaml:"version"`
 	Questions             []Question `json:"questions" yaml:"questions,omitempty"`
 	MinimumRancherVersion string     `json:"minimumRancherVersion" yaml:"minimum_rancher_version,omitempty"`
+	Output                Output     `json:"output" yaml:"output,omitempty"`
 }

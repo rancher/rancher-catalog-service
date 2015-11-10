@@ -126,6 +126,14 @@ func LoadImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+//LoadFile returns template image
+func LoadFile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
+	log.Debugf("Request to load file: %s", path)
+	http.ServeFile(w, r, path)
+}
+
 //RefreshCatalog will be doing a force catalog refresh
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
@@ -172,6 +180,9 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template, resourceTy
 	}
 
 	template.IconLink = BuildURL(r, "image", template.IconLink)
+	if template.ReadmeLink != "" {
+		template.ReadmeLink = BuildURL(r, "file", template.ReadmeLink)
+	}
 
 	return copyOfversionLinks
 }
