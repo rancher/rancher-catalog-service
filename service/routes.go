@@ -92,6 +92,18 @@ var routes = Routes{
 		LoadImage,
 	},
 	Route{
+		"LoadVersionFile",
+		"GET",
+		"/v1-catalog/files/{templateId}/{versionId}/{fileId}",
+		LoadFile,
+	},
+	Route{
+		"LoadFile",
+		"GET",
+		"/v1-catalog/files/{templateId}/{fileId}",
+		LoadFile,
+	},
+	Route{
 		"RefreshCatalog",
 		"POST",
 		"/v1-catalog/templates",

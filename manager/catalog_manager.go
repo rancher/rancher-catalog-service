@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-catalog-service/model"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -66,13 +65,15 @@ func SetEnv() {
 //Init clones or pulls the catalog, starts background refresh thread
 func Init() {
 	_, err := os.Stat(catalogRoot)
-	if err == nil {
+	if !os.IsNotExist(err) || err == nil {
 		//remove the existing repo
 		err := os.RemoveAll("./DATA/")
 		if err != nil {
 			log.Fatal("Cannot remove the existing catalog data folder ./DATA/", err)
 			_ = fmt.Errorf("Cannot remove the existing catalog data folder ./DATA/, error: " + err.Error())
 		}
+	} else {
+		log.Info("./DATA/ folder does not exist, proceeding to clone the repo : ", err)
 	}
 	cloneCatalog()
 	UUIDToPath = make(map[string]string)
@@ -164,6 +165,8 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 					newTemplate.IconLink = f.Name() + "/" + subfile.Name()
+				} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
+					newTemplate.ReadmeLink = f.Name() + "/" + subfile.Name()
 				}
 			}
 		}
@@ -242,6 +245,9 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			if config["uuid"] != "" {
 				template.UUID = config["uuid"]
 			}
+			template.Maintainer = config["maintainer"]
+			template.License = config["license"]
+			template.ProjectURL = config["projectURL"]
 		}
 	}
 }
@@ -264,6 +270,7 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	newTemplate.Description = RC[".catalog"].Description
 	newTemplate.Version = RC[".catalog"].Version
 	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
+	newTemplate.Output = RC[".catalog"].Output
 
 	if newTemplate.UUID != "" {
 		//store uuid -> path map
