@@ -100,8 +100,14 @@ func RefreshCatalog() {
 	//put msg on channel, so that any other request can wait
 	select {
 	case refreshReqChannel <- 1:
-		pullCatalog()
-		filepath.Walk(catalogRoot, walkCatalog)
+		err := pullCatalog()
+		if err == nil {
+			log.Debug("Refreshing the catalog...")
+			Catalog = make(map[string]model.Template)
+			filepath.Walk(catalogRoot, walkCatalog)
+		} else {
+			log.Debugf("Will not refresh the catalog since Pull Catalog faced error: %v", err)
+		}
 		<-refreshReqChannel
 	default:
 		log.Info("Refresh catalog is already in process, skipping")
@@ -120,14 +126,24 @@ func cloneCatalog() {
 	}
 }
 
-func pullCatalog() {
+func pullCatalog() error {
 	log.Debug("Pulling the catalog from the repo to sync any new changes")
 
-	e := exec.Command("git", "-C", "./DATA", "pull", "origin", "master")
+	e := exec.Command("git", "-C", "./DATA", "fetch", "--all")
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", *catalogURL, err)
+		log.Errorf("Failed to fetch all from the git repo %s, error: %v", *catalogURL, err)
+		return err
 	}
+
+	e = exec.Command("git", "-C", "./DATA", "reset", "--hard", "origin/master")
+	err = e.Run()
+	if err != nil {
+		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", *catalogURL, err)
+		return err
+	}
+
+	return nil
 }
 
 func walkCatalog(path string, f os.FileInfo, err error) error {
