@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/rancher/rancher-catalog-service",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.4.1",
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -24,9 +24,14 @@
 			"Rev": "1551221275a7bd42978745a376b2531f791d88f3"
 		},
 		{
+			"ImportPath": "github.com/rancher/go-rancher/api",
+			"Comment": "v0.1.0-96-g2e5a404",
+			"Rev": "2e5a404d6d5b855d8d482d1efae64687eec67f98"
+		},
+		{
 			"ImportPath": "github.com/rancher/go-rancher/client",
-			"Comment": "v0.1.0-69-g179d8a4",
-			"Rev": "179d8a42a477d2de0a4e7a4f5a99df67d80ed1d8"
+			"Comment": "v0.1.0-96-g2e5a404",
+			"Rev": "2e5a404d6d5b855d8d482d1efae64687eec67f98"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
