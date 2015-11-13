@@ -72,12 +72,14 @@ func NewRouter() *mux.Router {
 
 	// API framework routes
 	router := mux.NewRouter().StrictSlash(true)
+
 	router.Methods("GET").Path("/").Handler(api.VersionsHandler(schemas, "v1-catalog"))
 	router.Methods("GET").Path("/v1-catalog/schemas").Handler(api.SchemasHandler(schemas))
 	router.Methods("GET").Path("/v1-catalog/schemas/{id}").Handler(api.SchemaHandler(schemas))
 	router.Methods("GET").Path("/v1-catalog").Handler(api.VersionHandler(schemas, "v1-catalog"))
 
 	// Application routes
+
 	for _, route := range routes {
 		router.
 			Methods(route.Method).
@@ -101,37 +103,37 @@ var routes = Routes{
 	Route{
 		"LoadTemplateMetadata",
 		"GET",
-		"/v1-catalog/templates/{templateId}",
+		"/v1-catalog/templates/{catalogId}/{templateId}",
 		LoadTemplateMetadata,
 	},
 	Route{
 		"LoadTemplateVersion",
 		"GET",
-		"/v1-catalog/templates/{templateId}/{versionId}",
+		"/v1-catalog/templates/{catalogId}/{templateId}/{versionId}",
 		LoadTemplateVersion,
 	},
 	Route{
 		"LoadVersionImage",
 		"GET",
-		"/v1-catalog/images/{templateId}/{versionId}/{imageId}",
+		"/v1-catalog/images/{catalogId}/{templateId}/{versionId}/{imageId}",
 		LoadImage,
 	},
 	Route{
 		"LoadImage",
 		"GET",
-		"/v1-catalog/images/{templateId}/{imageId}",
+		"/v1-catalog/images/{catalogId}/{templateId}/{imageId}",
 		LoadImage,
 	},
 	Route{
 		"LoadVersionFile",
 		"GET",
-		"/v1-catalog/files/{templateId}/{versionId}/{fileId}",
+		"/v1-catalog/files/{catalogId}/{templateId}/{versionId}/{fileId}",
 		LoadFile,
 	},
 	Route{
 		"LoadFile",
 		"GET",
-		"/v1-catalog/files/{templateId}/{fileId}",
+		"/v1-catalog/files/{catalogId}/{templateId}/{fileId}",
 		LoadFile,
 	},
 	Route{
@@ -146,5 +148,23 @@ var routes = Routes{
 		"GET",
 		"/v1-catalog/upgradeinfo/{templateUUID}",
 		GetUpgradeInfo,
+	},
+	Route{
+		"ListCatalogs",
+		"GET",
+		"/v1-catalog/catalogs",
+		ListCatalogs,
+	},
+	Route{
+		"GetCatalog",
+		"GET",
+		"/v1-catalog/catalogs/{catalogId}",
+		GetCatalog,
+	},
+	Route{
+		"GetTemplatesForCatalog",
+		"GET",
+		"/v1-catalog/catalogs/{catalogId}/templates",
+		GetTemplatesForCatalog,
 	},
 }
