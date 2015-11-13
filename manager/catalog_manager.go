@@ -13,15 +13,18 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
 	"gopkg.in/yaml.v2"
 )
 
 var (
-	catalogURL        = flag.String("catalogUrl", "", "Git repo url containing catalog (such as a public GitHub repo url)")
-	refreshInterval   = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
-	logFile           = flag.String("logFile", "", "Log file")
-	debug             = flag.Bool("debug", false, "Debug")
+	catalogURL      = flag.String("catalogUrl", "", "Git repo url containing catalog (such as a public GitHub repo url)")
+	refreshInterval = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
+	logFile         = flag.String("logFile", "", "Log file")
+	debug           = flag.Bool("debug", false, "Debug")
+	// Port is the listen port of the HTTP server
+	Port              = flag.Int("port", 8088, "HTTP listen port")
 	metadataFolder    = regexp.MustCompile(`^DATA/templates/[^/]+$`)
 	refreshReqChannel = make(chan int, 1)
 	//Catalog is the map storing template metadata in memory
@@ -151,8 +154,13 @@ func walkCatalog(path string, f os.FileInfo, err error) error {
 	if f.IsDir() && metadataFolder.MatchString(path) {
 
 		log.Debugf("Reading metadata folder for template:%s", f.Name())
-		newTemplate := model.Template{}
-		newTemplate.Path = f.Name()
+		newTemplate := model.Template{
+			Resource: client.Resource{
+				Id:   f.Name(),
+				Type: "template",
+			},
+			Path: f.Name(),
+		}
 
 		//read the root level config.yml
 		readTemplateConfig(path, &newTemplate)

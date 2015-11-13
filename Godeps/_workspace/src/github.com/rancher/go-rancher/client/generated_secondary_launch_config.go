@@ -33,11 +33,15 @@ type SecondaryLaunchConfig struct {
 
 	Data map[string]interface{} `json:"data,omitempty" yaml:"data,omitempty"`
 
+	DataVolumeMounts map[string]interface{} `json:"dataVolumeMounts,omitempty" yaml:"data_volume_mounts,omitempty"`
+
 	DataVolumes []string `json:"dataVolumes,omitempty" yaml:"data_volumes,omitempty"`
 
 	DataVolumesFrom []string `json:"dataVolumesFrom,omitempty" yaml:"data_volumes_from,omitempty"`
 
 	DataVolumesFromLaunchConfigs []string `json:"dataVolumesFromLaunchConfigs,omitempty" yaml:"data_volumes_from_launch_configs,omitempty"`
+
+	DeploymentUnitUuid string `json:"deploymentUnitUuid,omitempty" yaml:"deployment_unit_uuid,omitempty"`
 
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
@@ -141,6 +145,8 @@ type SecondaryLaunchConfig struct {
 
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+
 	VolumeDriver string `json:"volumeDriver,omitempty" yaml:"volume_driver,omitempty"`
 
 	WorkingDir string `json:"workingDir,omitempty" yaml:"working_dir,omitempty"`
@@ -224,6 +230,11 @@ func (c *SecondaryLaunchConfigClient) List(opts *ListOpts) (*SecondaryLaunchConf
 func (c *SecondaryLaunchConfigClient) ById(id string) (*SecondaryLaunchConfig, error) {
 	resp := &SecondaryLaunchConfig{}
 	err := c.rancherClient.doById(SECONDARY_LAUNCH_CONFIG_TYPE, id, resp)
+	if apiError, ok := err.(*ApiError); ok {
+		if apiError.StatusCode == 404 {
+			return nil, nil
+		}
+	}
 	return resp, err
 }
 

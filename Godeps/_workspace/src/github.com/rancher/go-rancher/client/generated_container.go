@@ -33,9 +33,13 @@ type Container struct {
 
 	Data map[string]interface{} `json:"data,omitempty" yaml:"data,omitempty"`
 
+	DataVolumeMounts map[string]interface{} `json:"dataVolumeMounts,omitempty" yaml:"data_volume_mounts,omitempty"`
+
 	DataVolumes []string `json:"dataVolumes,omitempty" yaml:"data_volumes,omitempty"`
 
 	DataVolumesFrom []string `json:"dataVolumesFrom,omitempty" yaml:"data_volumes_from,omitempty"`
+
+	DeploymentUnitUuid string `json:"deploymentUnitUuid,omitempty" yaml:"deployment_unit_uuid,omitempty"`
 
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
@@ -137,6 +141,8 @@ type Container struct {
 
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+
 	VolumeDriver string `json:"volumeDriver,omitempty" yaml:"volume_driver,omitempty"`
 
 	WorkingDir string `json:"workingDir,omitempty" yaml:"working_dir,omitempty"`
@@ -220,6 +226,11 @@ func (c *ContainerClient) List(opts *ListOpts) (*ContainerCollection, error) {
 func (c *ContainerClient) ById(id string) (*Container, error) {
 	resp := &Container{}
 	err := c.rancherClient.doById(CONTAINER_TYPE, id, resp)
+	if apiError, ok := err.(*ApiError); ok {
+		if apiError.StatusCode == 404 {
+			return nil, nil
+		}
+	}
 	return resp, err
 }
 
