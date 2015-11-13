@@ -211,7 +211,7 @@ func ReadTemplateVersion(path string) model.Template {
 		log.Errorf("Error reading template at path: %s, error: %v", path, err)
 	} else {
 
-		var foundIcon bool
+		var foundIcon, foundReadme bool
 
 		for _, subfile := range dirList {
 			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
@@ -226,6 +226,11 @@ func ReadTemplateVersion(path string) model.Template {
 			} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
 
 				readRancherCompose(path, &newTemplate)
+			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
+
+				newTemplate.ReadmeLink = path + "/" + subfile.Name()
+				foundReadme = true
+
 			}
 		}
 		if !foundIcon {
@@ -235,6 +240,18 @@ func ReadTemplateVersion(path string) model.Template {
 			parentMetadata, ok := Catalog[parentPath]
 			if ok {
 				newTemplate.IconLink = parentMetadata.IconLink
+			} else {
+				log.Debugf("Could not find the parent metadata %s", parentPath)
+			}
+		}
+
+		if !foundReadme {
+			//use the parent icon
+			tokens := strings.Split(path, "/")
+			parentPath := tokens[0]
+			parentMetadata, ok := Catalog[parentPath]
+			if ok {
+				newTemplate.ReadmeLink = parentMetadata.ReadmeLink
 			} else {
 				log.Debugf("Could not find the parent metadata %s", parentPath)
 			}
