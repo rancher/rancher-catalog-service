@@ -2,14 +2,16 @@ package service
 
 import (
 	"encoding/json"
+	"net/http"
+	"regexp"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/go-semver/semver"
 	"github.com/gorilla/mux"
+	"github.com/rancher/go-rancher/api"
 	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/manager"
 	"github.com/rancher/rancher-catalog-service/model"
-	"net/http"
-	"regexp"
 )
 
 const headerForwardedProto string = "X-Forwarded-Proto"
@@ -44,14 +46,10 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 		log.Debugf("Found Template: %s", value.Name)
 		value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
-		PopulateResource(r, "template", value.Path, &value.Resource)
 		resp.Data = append(resp.Data, value)
 	}
 
-	PopulateCollection(&resp.Collection)
-	w.Header().Add("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(resp)
-
+	api.GetApiContext(r).Write(&resp)
 }
 
 func filterByMinimumRancherVersion(rancherVersion string, template *model.Template) (map[string]string, error) {
@@ -95,9 +93,7 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	templateMetadata, ok := manager.Catalog[path]
 	if ok {
 		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
-		PopulateResource(r, "template", templateMetadata.Path, &templateMetadata.Resource)
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(templateMetadata)
+		api.GetApiContext(r).Write(&templateMetadata)
 	} else {
 		log.Debugf("Cannot find metadata for template: %s", path)
 		http.NotFound(w, r)

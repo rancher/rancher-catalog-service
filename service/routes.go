@@ -1,10 +1,14 @@
 package service
 
 import (
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	"github.com/rancher/go-rancher/api"
+	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/manager"
-	"net/http"
+	"github.com/rancher/rancher-catalog-service/model"
 )
 
 //MuxWrapper is a wrapper over the mux router that returns 503 until catalog is ready
@@ -47,16 +51,43 @@ type Routes []Route
 
 //NewRouter creates and configures a mux router
 func NewRouter() *mux.Router {
+	schemas := &client.Schemas{}
 
+	// ApiVersion
+	apiVersion := schemas.AddType("apiVersion", client.Resource{})
+	apiVersion.CollectionMethods = []string{}
+
+	// Schema
+	schemas.AddType("schema", client.Schema{})
+
+	// Question
+	question := schemas.AddType("question", model.Question{})
+	question.CollectionMethods = []string{}
+
+	// Template
+	template := schemas.AddType("template", model.Template{})
+	delete(template.ResourceFields, "rancherCompose")
+	delete(template.ResourceFields, "dockerCompose")
+	delete(template.ResourceFields, "uuid")
+
+	// API framework routes
 	router := mux.NewRouter().StrictSlash(true)
+	router.Methods("GET").Path("/").Handler(api.VersionsHandler(schemas, "v1-catalog"))
+	router.Methods("GET").Path("/v1-catalog/schemas").Handler(api.SchemasHandler(schemas))
+	router.Methods("GET").Path("/v1-catalog/schemas/{id}").Handler(api.SchemaHandler(schemas))
+	router.Methods("GET").Path("/v1-catalog").Handler(api.VersionHandler(schemas, "v1-catalog"))
+
+	// Application routes
 	for _, route := range routes {
 		router.
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(route.HandlerFunc)
+			Handler(api.ApiHandler(schemas, route.HandlerFunc))
 	}
+
 	router.GetRoute("RefreshCatalog").Queries("refresh", "")
+
 	return router
 }
 
