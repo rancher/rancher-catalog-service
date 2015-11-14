@@ -69,6 +69,20 @@ func NewRouter() *mux.Router {
 	delete(template.ResourceFields, "rancherCompose")
 	delete(template.ResourceFields, "dockerCompose")
 	delete(template.ResourceFields, "uuid")
+	delete(template.ResourceFields, "questions")
+	delete(template.ResourceFields, "TemplateVersionRancherVersion")
+	delete(template.ResourceFields, "iconLink")
+	delete(template.ResourceFields, "readmeLink")
+	delete(template.ResourceFields, "projectURL")
+	delete(template.ResourceFields, "version")
+
+	// Template Version
+	templateVersion := schemas.AddType("templateVersion", model.Template{})
+	templateVersion.CollectionMethods = []string{}
+
+	// Catalog
+	catalog := schemas.AddType("catalog", manager.Catalog{})
+	delete(catalog.ResourceFields, "catalogLink")
 
 	// API framework routes
 	router := mux.NewRouter().StrictSlash(true)
@@ -107,9 +121,15 @@ var routes = Routes{
 		LoadTemplateMetadata,
 	},
 	Route{
-		"LoadTemplateVersion",
+		"",
 		"GET",
 		"/v1-catalog/templates/{catalogId}/{templateId}/{versionId}",
+		LoadTemplateVersion,
+	},
+	Route{
+		"",
+		"GET",
+		"/v1-catalog/templateversions/{catalogId}/{templateId}/{versionId}",
 		LoadTemplateVersion,
 	},
 	Route{
@@ -143,12 +163,6 @@ var routes = Routes{
 		RefreshCatalog,
 	},
 	//http://<server_ip>:8088/v1/upgrades/<template_uuid>
-	Route{
-		"GetNewTemplateVersions",
-		"GET",
-		"/v1-catalog/upgradeinfo/{templateUUID}",
-		GetUpgradeInfo,
-	},
 	Route{
 		"ListCatalogs",
 		"GET",
