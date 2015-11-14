@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"net/http"
 	"regexp"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/coreos/go-semver/semver"
 	"github.com/gorilla/mux"
 	"github.com/rancher/go-rancher/api"
-	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/manager"
 	"github.com/rancher/rancher-catalog-service/model"
 )
@@ -18,32 +16,34 @@ const headerForwardedProto string = "X-Forwarded-Proto"
 
 //ListCatalogs is a handler for route /catalogs and returns a collection of catalog metadata
 func ListCatalogs(w http.ResponseWriter, r *http.Request) {
+	apiContext := api.GetApiContext(r)
+
 	catalogs := manager.ListAllCatalogs()
 	resp := manager.CatalogCollection{}
 
 	for _, value := range catalogs {
-		value.CatalogLink = BuildURL(r, "catalog", value.CatalogLink)
-		PopulateResource(r, "catalog", value.CatalogID, &value.Resource)
+		if value.Links == nil {
+			value.Links = map[string]string{}
+		}
+
+		value.Links["templates"] = apiContext.UrlBuilder.ReferenceByIdLink("catalog", value.CatalogLink)
 		resp.Data = append(resp.Data, value)
 	}
 
-	PopulateCollection(&resp.Collection, "catalog")
-	w.Header().Add("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(resp)
+	apiContext.Write(&resp)
 }
 
 //GetCatalog is a handler for route /catalog/{catalogID} and returns the specific catalog metadata
 func GetCatalog(w http.ResponseWriter, r *http.Request) {
+	apiContext := api.GetApiContext(r)
 
 	vars := mux.Vars(r)
 	catalogID := vars["catalogId"]
 	catalog, ok := manager.GetCatalog(catalogID)
 
 	if ok {
-		catalog.CatalogLink = BuildURL(r, "catalog", catalog.CatalogLink)
-		PopulateResource(r, "catalog", catalog.CatalogID, &catalog.Resource)
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(catalog)
+		catalog.CatalogLink = apiContext.UrlBuilder.ReferenceByIdLink("catalog", catalog.CatalogLink)
+		apiContext.Write(&catalog)
 	} else {
 		log.Debugf("Cannot find catalog by catalogID: %s", catalogID)
 		http.NotFound(w, r)
@@ -53,6 +53,7 @@ func GetCatalog(w http.ResponseWriter, r *http.Request) {
 
 //GetTemplatesForCatalog is a handler for listing templated under a given catalogID
 func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
+	apiContext := api.GetApiContext(r)
 
 	vars := mux.Vars(r)
 	catalogID := vars["catalogId"]
@@ -85,15 +86,11 @@ func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
 
 			log.Debugf("Found Template: %s", value.Name)
 
-			value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
-			PopulateResource(r, "template", value.Path, &value.Resource)
+			value.VersionLinks = PopulateTemplateLinks(r, &value)
 			resp.Data = append(resp.Data, value)
 		}
 
-		PopulateCollection(&resp.Collection, "template")
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(resp)
-
+		apiContext.Write(&resp)
 	}
 
 }
@@ -135,8 +132,7 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Debugf("Found Template: %s", value.Name)
-
-		value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
+		value.VersionLinks = PopulateTemplateLinks(r, &value)
 		resp.Data = append(resp.Data, value)
 	}
 
@@ -183,7 +179,7 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Request to load metadata for template: %s", path)
 	templateMetadata, ok := manager.GetTemplateMetadata(vars["catalogId"], vars["templateId"])
 	if ok {
-		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
+		PopulateTemplateLinks(r, &templateMetadata)
 		api.GetApiContext(r).Write(&templateMetadata)
 	} else {
 		log.Debugf("Cannot find metadata for template: %s", path)
@@ -200,10 +196,12 @@ func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
 
 	template, ok := manager.ReadTemplateVersion(vars["catalogId"], vars["templateId"], vars["versionId"])
 	if ok {
-		template.VersionLinks = PopulateTemplateLinks(r, template, "template")
-		PopulateResource(r, "template", template.Path, &template.Resource)
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(template)
+		template.Type = "templateVersion"
+		template.VersionLinks = PopulateTemplateLinks(r, template)
+		template.UUID = template.Id
+		upgradeInfo := GetUpgradeInfo(r, template.Path)
+		template.UpgradeVersionLinks = upgradeInfo.NewVersionLinks
+		api.GetApiContext(r).Write(&template)
 	} else {
 		log.Debugf("Cannot find template: %s", path)
 		http.NotFound(w, r)
@@ -235,77 +233,48 @@ func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
-func GetUpgradeInfo(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	templateUUID := vars["templateUUID"]
-	log.Debugf("Request to get new template versions for uuid %s", templateUUID)
+func GetUpgradeInfo(r *http.Request, path string) model.UpgradeInfo {
+	var upgradeInfo model.UpgradeInfo
+	log.Debugf("Request to get new template versions for path %s", path)
 
-	templateMetadata, ok := manager.GetNewTemplateVersions(templateUUID)
+	templateMetadata, ok := manager.GetNewTemplateVersions(path)
 	if ok {
-		log.Debugf("Template returned by uuid: %v", templateMetadata.VersionLinks)
+		log.Debugf("Template returned by path: %v", templateMetadata.VersionLinks)
 		log.Debugf("Found Template: %s", templateMetadata.Name)
-		upgradeInfo := model.UpgradeInfo{}
 		upgradeInfo.CurrentVersion = templateMetadata.Version
 
 		upgradeInfo.NewVersionLinks = make(map[string]string)
-		upgradeInfo.NewVersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
-		//PopulateResource(r, "upgrade", templateMetadata.Name, &templateMetadata.Resource)
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		upgradeInfo.Type = "upgradeInfo"
-		json.NewEncoder(w).Encode(upgradeInfo)
+		upgradeInfo.NewVersionLinks = PopulateTemplateLinks(r, &templateMetadata)
 	} else {
-		log.Debugf("Cannot provide upgradeInfo as, cannot find metadata for template uuid: %s", templateUUID)
-		http.NotFound(w, r)
+		log.Debugf("Cannot provide upgradeInfo as, cannot find metadata for template path: %s", path)
 	}
-}
 
-//PopulateCollection will populate any metadata for the resource collection
-func PopulateCollection(collection *client.Collection, resourceType string) {
-	collection.Type = "collection"
-	collection.ResourceType = resourceType
+	return upgradeInfo
 }
 
 //PopulateTemplateLinks will populate the links needed to load a template from the service
-func PopulateTemplateLinks(r *http.Request, template *model.Template, resourceType string) map[string]string {
+func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string]string {
+	if template.Links == nil {
+		template.Links = map[string]string{}
+	}
+
+	apiContext := api.GetApiContext(r)
 
 	copyOfversionLinks := make(map[string]string)
 	for key, value := range template.VersionLinks {
-		copyOfversionLinks[key] = BuildURL(r, resourceType, value)
+		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", value)
 	}
 
-	template.IconLink = BuildURL(r, "image", template.IconLink)
+	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("image", template.IconLink)
 	if template.ReadmeLink != "" {
-		template.ReadmeLink = BuildURL(r, "file", template.ReadmeLink)
+		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("file", template.ReadmeLink)
 	}
+	if template.ProjectURL != "" {
+		template.Links["project"] = template.ProjectURL
+	}
+
+	template.VersionLinks = copyOfversionLinks
+	template.DefaultVersion = template.Version
 
 	return copyOfversionLinks
-}
-
-//PopulateResource will populate any metadata for the resource
-func PopulateResource(r *http.Request, resourceType, resourceID string, resource *client.Resource) {
-	resource.Type = resourceType
-
-	selfLink := BuildURL(r, resourceType, resourceID)
-
-	resource.Links = map[string]string{
-		"self": selfLink,
-	}
-}
-
-//BuildURL will generate the links needed for template versions/resource self links
-func BuildURL(r *http.Request, resourceType, resourceID string) string {
-
-	proto := r.Header.Get(headerForwardedProto)
-	var scheme string
-	if proto != "" {
-		scheme = proto + "://"
-	} else {
-		scheme = "http://"
-	}
-	var host = r.Host
-	var pluralName = resourceType + "s"
-	var version = "v1-catalog"
-	//get the url
-	return scheme + host + "/" + version + "/" + pluralName + "/" + resourceID
-
 }

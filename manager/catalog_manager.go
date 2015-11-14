@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
 )
 
@@ -68,7 +69,12 @@ func SetEnv() {
 			value = strings.TrimSpace(value)
 			if value != "" {
 				catalogProps := strings.SplitN(value, ":", 2)
-				newCatalog := Catalog{}
+				newCatalog := Catalog{
+					Resource: client.Resource{
+						Id:   catalogProps[0],
+						Type: "catalog",
+					},
+				}
 				newCatalog.CatalogID = catalogProps[0]
 				newCatalog.url = catalogProps[1]
 				refChan := make(chan int, 1)
@@ -125,7 +131,12 @@ func RefreshAllCatalogs() {
 func ListAllCatalogs() []Catalog {
 	var catalogCollection []Catalog
 	for catalogID := range CatalogsCollection {
-		catalog := Catalog{}
+		catalog := Catalog{
+			Resource: client.Resource{
+				Id:   catalogID,
+				Type: "catalog",
+			},
+		}
 		catalog.CatalogID = catalogID
 		catalog.CatalogLink = catalogID + "/templates"
 		catalogCollection = append(catalogCollection, catalog)
@@ -136,8 +147,13 @@ func ListAllCatalogs() []Catalog {
 //GetCatalog gets the metadata of the specified catalog
 func GetCatalog(catalogID string) (Catalog, bool) {
 	cat, ok := CatalogsCollection[catalogID]
-	catalog := Catalog{}
+	catalog := Catalog{
+		Resource: client.Resource{
+			Type: "catalog",
+		},
+	}
 	if ok {
+		catalog.Id = cat.CatalogID
 		catalog.CatalogID = cat.CatalogID
 		catalog.CatalogLink = cat.CatalogID + "/templates"
 	}
@@ -184,50 +200,46 @@ func ReadTemplateVersion(catalogID string, templateID string, versionID string) 
 }
 
 //GetNewTemplateVersions gets new versions of a template if available
-func GetNewTemplateVersions(templateUUID string) (model.Template, bool) {
+func GetNewTemplateVersions(path string) (model.Template, bool) {
 	templateMetadata := model.Template{}
-	path := UUIDToPath[templateUUID]
-	if path != "" {
-		//find the base template metadata name
-		tokens := strings.Split(path, "/")
-		catalogID := tokens[0]
-		parentPath := tokens[1]
-		cVersion := tokens[2]
 
-		//refresh the catalog and sync any new changes
-		cat := CatalogsCollection[catalogID]
-		//cat.refreshCatalog()
+	//find the base template metadata name
+	tokens := strings.Split(path, "/")
+	catalogID := tokens[0]
+	parentPath := tokens[1]
+	cVersion := tokens[2]
 
-		currentVersion, err := strconv.Atoi(cVersion)
+	//refresh the catalog and sync any new changes
+	cat := CatalogsCollection[catalogID]
+	//cat.refreshCatalog()
 
-		if err != nil {
-			log.Debugf("Error %v reading Current Version from path: %s for uuid: %s", err, path, templateUUID)
-		} else {
-			templateMetadata, ok := cat.metadata[catalogID+"/"+parentPath]
-			if ok {
-				log.Debugf("Template found by uuid: %s", templateUUID)
-				copyOfversionLinks := make(map[string]string)
-				for key, value := range templateMetadata.VersionLinks {
-					if value != path {
-						otherVersionTokens := strings.Split(value, "/")
-						oVersion := otherVersionTokens[2]
-						otherVersion, err := strconv.Atoi(oVersion)
+	currentVersion, err := strconv.Atoi(cVersion)
 
-						if err == nil && otherVersion > currentVersion {
-							copyOfversionLinks[key] = value
-						}
-					} else {
-						templateMetadata.Version = key
-					}
-				}
-				templateMetadata.VersionLinks = copyOfversionLinks
-				return templateMetadata, true
-			}
-		}
+	if err != nil {
+		log.Debugf("Error %v reading Current Version from path: %s", err, path)
 	} else {
-		log.Debugf("Template  path not found by uuid: %s", templateUUID)
+		templateMetadata, ok := cat.metadata[catalogID+"/"+parentPath]
+		if ok {
+			log.Debugf("Template found by path: %s", path)
+			copyOfversionLinks := make(map[string]string)
+			for key, value := range templateMetadata.VersionLinks {
+				if value != path {
+					otherVersionTokens := strings.Split(value, "/")
+					oVersion := otherVersionTokens[2]
+					otherVersion, err := strconv.Atoi(oVersion)
+
+					if err == nil && otherVersion > currentVersion {
+						copyOfversionLinks[key] = value
+					}
+				} else {
+					templateMetadata.Version = key
+				}
+			}
+			templateMetadata.VersionLinks = copyOfversionLinks
+			return templateMetadata, true
+		}
 	}
 
-	log.Debugf("Template metadata not found by uuid: %s", templateUUID)
+	log.Debugf("Template metadata not found by path: %s", path)
 	return templateMetadata, false
 }

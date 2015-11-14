@@ -10,8 +10,10 @@ type Template struct {
 	Category                      string            `json:"category"`
 	Description                   string            `json:"description"`
 	Version                       string            `json:"version"`
+	DefaultVersion                string            `json:"defaultVersion"`
 	IconLink                      string            `json:"iconLink"`
 	VersionLinks                  map[string]string `json:"versionLinks"`
+	UpgradeVersionLinks           map[string]string `json:"upgradeVersionLinks"`
 	DockerCompose                 string            `json:"dockerCompose"`
 	RancherCompose                string            `json:"rancherCompose"`
 	Questions                     []Question        `json:"questions"`

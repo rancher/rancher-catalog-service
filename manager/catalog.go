@@ -1,16 +1,17 @@
 package manager
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/rancher/go-rancher/client"
-	"github.com/rancher/rancher-catalog-service/model"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/rancher/go-rancher/client"
+	"github.com/rancher/rancher-catalog-service/model"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -27,7 +28,7 @@ type CatalogCollection struct {
 type Catalog struct {
 	client.Resource
 	CatalogID         string `json:"id"`
-	Description       string
+	Description       string `json:"description"`
 	CatalogLink       string `json:"catalogLink"`
 	url               string
 	catalogRoot       string
@@ -62,7 +63,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), path)
 		newTemplate := model.Template{
 			Resource: client.Resource{
-				Id:   f.Name(),
+				Id:   cat.CatalogID + "/" + f.Name(),
 				Type: "template",
 			},
 			Path: cat.CatalogID + "/" + f.Name(), //catalogRoot + f.Name()
@@ -219,7 +220,7 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 	dirList, err := ioutil.ReadDir(CatalogRootDir + path)
 	newTemplate := model.Template{}
 	newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
-	newTemplate.Id = cat.CatalogID + ":" + templateID + ":" + versionID
+	newTemplate.Id = newTemplate.Path
 
 	if err != nil {
 		log.Errorf("Error reading template at path: %s, error: %v", path, err)
