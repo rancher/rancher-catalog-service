@@ -89,7 +89,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 							UUIDToPath[subTemplate.UUID] = newTemplate.Path + "/" + subfile.Name()
 							log.Debugf("UUIDToPath map: %v", UUIDToPath)
 						}
-						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Path + "/" + subfile.Name()
+						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
 					} else {
 						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)

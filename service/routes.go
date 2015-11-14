@@ -101,16 +101,10 @@ var routes = Routes{
 		ListTemplates,
 	},
 	Route{
-		"LoadTemplateMetadata",
+		"LoadTemplateDetails",
 		"GET",
-		"/v1-catalog/templates/{catalogId}/{templateId}",
-		LoadTemplateMetadata,
-	},
-	Route{
-		"LoadTemplateVersion",
-		"GET",
-		"/v1-catalog/templates/{catalogId}/{templateId}/{versionId}",
-		LoadTemplateVersion,
+		"/v1-catalog/templates/{catalog_template_Id}",
+		LoadTemplateDetails,
 	},
 	Route{
 		"LoadVersionImage",
