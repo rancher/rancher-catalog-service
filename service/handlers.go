@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/go-semver/semver"
@@ -86,13 +87,10 @@ func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Debugf("Found Template: %s", value.Name)
 
 			value.VersionLinks = PopulateTemplateLinks(r, &value, "template")
-			PopulateResource(r, "template", value.Path, &value.Resource)
 			resp.Data = append(resp.Data, value)
 		}
 
-		PopulateCollection(&resp.Collection, "template")
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(resp)
+		api.GetApiContext(r).Write(&resp)
 
 	}
 
@@ -176,12 +174,24 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 	return copyOfversionLinks, nil
 }
 
-//LoadTemplateMetadata returns template metadata for the provided templateId
-func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
+//LoadTemplateDetails returns details of the template
+func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := vars["catalogId"] + "/" + vars["templateId"]
+	templateIDString := vars["catalog_template_Id"]
+	pathTokens := strings.Split(templateIDString, ":")
+
+	if len(pathTokens) == 2 {
+		loadTemplateMetadata(pathTokens[0], pathTokens[1], w, r)
+	} else if len(pathTokens) == 3 {
+		loadTemplateVersion(pathTokens[0], pathTokens[1], pathTokens[2], w, r)
+	}
+}
+
+//loadTemplateMetadata returns template metadata for the provided templateId
+func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWriter, r *http.Request) {
+	path := catalogID + "/" + templateID
 	log.Debugf("Request to load metadata for template: %s", path)
-	templateMetadata, ok := manager.GetTemplateMetadata(vars["catalogId"], vars["templateId"])
+	templateMetadata, ok := manager.GetTemplateMetadata(catalogID, templateID)
 	if ok {
 		templateMetadata.VersionLinks = PopulateTemplateLinks(r, &templateMetadata, "template")
 		api.GetApiContext(r).Write(&templateMetadata)
@@ -191,17 +201,16 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//LoadTemplateVersion returns template version details for the provided templateId/versionId
-func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
+//loadTemplateVersion returns template version details for the provided templateId/versionId
+func loadTemplateVersion(catalogID string, templateID string, versionID string, w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
-	vars := mux.Vars(r)
-	path := vars["catalogId"] + "/" + vars["templateId"] + "/" + vars["versionId"]
+	path := catalogID + "/" + templateID + "/" + versionID
 	log.Debugf("Request to load details for template version: %s", path)
 
-	template, ok := manager.ReadTemplateVersion(vars["catalogId"], vars["templateId"], vars["versionId"])
+	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
 	if ok {
 		template.VersionLinks = PopulateTemplateLinks(r, template, "template")
-		PopulateResource(r, "template", template.Path, &template.Resource)
+		PopulateResource(r, "template", template.Id, &template.Resource)
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(template)
 	} else {
