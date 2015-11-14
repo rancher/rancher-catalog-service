@@ -1,16 +1,17 @@
 package manager
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/rancher/go-rancher/client"
-	"github.com/rancher/rancher-catalog-service/model"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/rancher/go-rancher/client"
+	"github.com/rancher/rancher-catalog-service/model"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -62,7 +63,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), path)
 		newTemplate := model.Template{
 			Resource: client.Resource{
-				Id:   f.Name(),
+				Id:   cat.CatalogID + ":" + f.Name(),
 				Type: "template",
 			},
 			Path: cat.CatalogID + "/" + f.Name(), //catalogRoot + f.Name()
@@ -108,7 +109,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 }
 
 func (cat *Catalog) pullCatalog() error {
-	log.Infof("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
+	log.Debugf("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
 
 	e := exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
 

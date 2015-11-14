@@ -3,7 +3,6 @@ package manager
 import (
 	"flag"
 	"fmt"
-	//"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -13,8 +12,19 @@ import (
 	"github.com/rancher/rancher-catalog-service/model"
 )
 
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	return fmt.Sprint(*i)
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 var (
-	catalogURLList  = flag.String("catalogUrlList", "", "Comma separated list providing a git repo id and git repo urls (such as a public GitHub repo url) in the form of id1:url1,id2:url2... ")
+	//catalogURLList  = flag.String("catalogUrlList", "", "Comma separated list providing a git repo id and git repo urls (such as a public GitHub repo url) in the form of id1:url1,id2:url2... ")
 	refreshInterval = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
 	logFile         = flag.String("logFile", "", "Log file")
 	debug           = flag.Bool("debug", false, "Debug")
@@ -27,6 +37,7 @@ var (
 	CatalogReadyChannel = make(chan int, 1)
 	//UUIDToPath holds the mapping between a template UUID to the path in the repo
 	UUIDToPath map[string]string
+	catalogURL arrayFlags
 )
 
 //CatalogRootDir is the root folder under which all catalogs are cloned
@@ -34,6 +45,7 @@ const CatalogRootDir string = "./DATA/"
 
 //SetEnv parses the command line args and sets the necessary variables
 func SetEnv() {
+	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id:repo_url. Specify the flag multiple times for multiple repos")
 	flag.Parse()
 
 	if *debug {
@@ -53,30 +65,33 @@ func SetEnv() {
 	}
 	log.SetFormatter(textFormatter)
 
-	if *catalogURLList == "" {
-		err := "Halting Catalog service, Catalog git repo url not provided"
-		log.Fatal(err)
-		_ = fmt.Errorf(err)
-	} else {
-		urlList := strings.TrimSpace(*catalogURLList)
-		//parse the comma separated list into catalog structs
-		urls := strings.Split(urlList, ",")
+	if catalogURL != nil {
 		CatalogsCollection = make(map[string]*Catalog)
 		UUIDToPath = make(map[string]string)
 
-		for _, value := range urls {
+		for index, value := range catalogURL {
 			value = strings.TrimSpace(value)
 			if value != "" {
-				catalogProps := strings.SplitN(value, ":", 2)
+				tokens := strings.Split(value, "=")
+				if len(tokens) == 1 {
+					//add a default catalogName
+					defaultName := "repo-" + strconv.Itoa(index)
+					tokens = append(tokens, tokens[0])
+					tokens[0] = defaultName
+				}
 				newCatalog := Catalog{}
-				newCatalog.CatalogID = catalogProps[0]
-				newCatalog.url = catalogProps[1]
+				newCatalog.CatalogID = tokens[0]
+				newCatalog.url = tokens[1]
 				refChan := make(chan int, 1)
 				newCatalog.refreshReqChannel = &refChan
-				newCatalog.catalogRoot = CatalogRootDir + catalogProps[0]
-				CatalogsCollection[catalogProps[0]] = &newCatalog
+				newCatalog.catalogRoot = CatalogRootDir + tokens[0]
+				CatalogsCollection[tokens[0]] = &newCatalog
 			}
 		}
+	} else {
+		err := "Halting Catalog service, Catalog git repo url not provided"
+		log.Fatal(err)
+		_ = fmt.Errorf(err)
 	}
 }
 
@@ -194,10 +209,7 @@ func GetNewTemplateVersions(templateUUID string) (model.Template, bool) {
 		parentPath := tokens[1]
 		cVersion := tokens[2]
 
-		//refresh the catalog and sync any new changes
 		cat := CatalogsCollection[catalogID]
-		//cat.refreshCatalog()
-
 		currentVersion, err := strconv.Atoi(cVersion)
 
 		if err != nil {
