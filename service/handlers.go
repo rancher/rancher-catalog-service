@@ -265,9 +265,9 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string
 		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", value)
 	}
 
-	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("image", template.IconLink)
+	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("images", template.IconLink)
 	if template.ReadmeLink != "" {
-		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("file", template.ReadmeLink)
+		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("files", template.ReadmeLink)
 	}
 	if template.ProjectURL != "" {
 		template.Links["project"] = template.ProjectURL
