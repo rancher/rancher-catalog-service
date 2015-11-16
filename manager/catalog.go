@@ -63,7 +63,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), path)
 		newTemplate := model.Template{
 			Resource: client.Resource{
-				Id:   cat.CatalogID + "/" + f.Name(),
+				Id:   cat.CatalogID + ":" + f.Name(),
 				Type: "template",
 			},
 			Path: cat.CatalogID + "/" + f.Name(), //catalogRoot + f.Name()
@@ -89,7 +89,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 							UUIDToPath[subTemplate.UUID] = newTemplate.Path + "/" + subfile.Name()
 							log.Debugf("UUIDToPath map: %v", UUIDToPath)
 						}
-						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Path + "/" + subfile.Name()
+						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
 					} else {
 						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
@@ -217,60 +217,65 @@ func readFile(relativePath string, fileName string) *[]byte {
 func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*model.Template, bool) {
 
 	path := cat.CatalogID + "/templates/" + templateID + "/" + versionID
-	dirList, err := ioutil.ReadDir(CatalogRootDir + path)
-	newTemplate := model.Template{}
-	newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
-	newTemplate.Id = newTemplate.Path
+	parentPath := cat.CatalogID + "/" + templateID
+	_, ok := cat.metadata[parentPath]
 
-	if err != nil {
-		log.Errorf("Error reading template at path: %s, error: %v", path, err)
-		return nil, false
-	}
+	if ok {
+		dirList, err := ioutil.ReadDir(CatalogRootDir + path)
+		newTemplate := model.Template{}
+		newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
+		newTemplate.Id = cat.CatalogID + ":" + templateID + ":" + versionID
 
-	var foundIcon, foundReadme bool
-
-	for _, subfile := range dirList {
-		if strings.HasPrefix(subfile.Name(), "catalogIcon") {
-
-			newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
-			foundIcon = true
-
-		} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
-
-			newTemplate.DockerCompose = string(*(readFile(CatalogRootDir+path, subfile.Name())))
-
-		} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
-
-			readRancherCompose(CatalogRootDir+path, &newTemplate)
-		} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
-
-			newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
-			foundReadme = true
-
+		if err != nil {
+			log.Errorf("Error reading template at path: %s, error: %v", path, err)
+			return nil, false
 		}
-	}
-	if !foundIcon {
-		//use the parent icon
-		parentPath := cat.CatalogID + "/" + templateID
-		parentMetadata, ok := cat.metadata[parentPath]
-		if ok {
-			newTemplate.IconLink = parentMetadata.IconLink
-		} else {
-			log.Debugf("Could not find the parent metadata %s", parentPath)
+
+		var foundIcon, foundReadme bool
+
+		for _, subfile := range dirList {
+			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
+
+				newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
+				foundIcon = true
+
+			} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
+
+				newTemplate.DockerCompose = string(*(readFile(CatalogRootDir+path, subfile.Name())))
+
+			} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
+
+				readRancherCompose(CatalogRootDir+path, &newTemplate)
+			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
+
+				newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
+				foundReadme = true
+
+			}
 		}
+		if !foundIcon {
+			//use the parent icon
+			parentMetadata, ok := cat.metadata[parentPath]
+			if ok {
+				newTemplate.IconLink = parentMetadata.IconLink
+			} else {
+				log.Debugf("Could not find the parent metadata %s", parentPath)
+			}
+		}
+
+		if !foundReadme {
+			//use the parent readme
+			parentMetadata, ok := cat.metadata[parentPath]
+			if ok {
+				newTemplate.ReadmeLink = parentMetadata.ReadmeLink
+			} else {
+				log.Debugf("Could not find the parent metadata %s", parentPath)
+			}
+		}
+
+		return &newTemplate, true
 	}
 
-	if !foundReadme {
-		//use the parent readme
-		parentPath := cat.CatalogID + "/" + templateID
-		parentMetadata, ok := cat.metadata[parentPath]
-		if ok {
-			newTemplate.ReadmeLink = parentMetadata.ReadmeLink
-		} else {
-			log.Debugf("Could not find the parent metadata %s", parentPath)
-		}
-	}
-
-	return &newTemplate, true
+	return nil, false
 
 }
