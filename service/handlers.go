@@ -115,6 +115,11 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		log.Debug("Request to list all templates in the Catalog")
 	}
 
+	category := r.URL.Query().Get("category_ne")
+	if category != "" {
+		log.Debugf("And also get the templates with category not = %s", category)
+	}
+
 	//read the catalog
 	resp := model.TemplateCollection{}
 	for _, value := range templates {
@@ -130,6 +135,13 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		//if no versions are present then just skip the template
 		if len(value.VersionLinks) == 0 {
 			continue
+		}
+
+		if category != "" && value.Category != "" {
+			if strings.EqualFold(category, value.Category) {
+				//skip the templates matching the category_ne filter
+				continue
+			}
 		}
 
 		log.Debugf("Found Template: %s", value.Id)
