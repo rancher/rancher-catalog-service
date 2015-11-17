@@ -36,8 +36,12 @@ var (
 	CatalogsCollection map[string]*Catalog
 	//CatalogReadyChannel signals if the catalog is cloned and loaded in memmory
 	CatalogReadyChannel = make(chan int, 1)
-	//UUIDToPath holds the mapping between a template UUID to the path in the repo
-	UUIDToPath map[string]string
+
+	//PathToImage holds the mapping between a template path in the repo to its image name
+	PathToImage map[string]string
+	//PathToReadme holds the mapping between a template path in the repo to its readme file name
+	PathToReadme map[string]string
+
 	catalogURL arrayFlags
 )
 
@@ -68,7 +72,8 @@ func SetEnv() {
 
 	if catalogURL != nil {
 		CatalogsCollection = make(map[string]*Catalog)
-		UUIDToPath = make(map[string]string)
+		PathToImage = make(map[string]string)
+		PathToReadme = make(map[string]string)
 		defaultFound := false
 
 		for _, value := range catalogURL {

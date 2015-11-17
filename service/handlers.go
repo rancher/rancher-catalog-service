@@ -179,13 +179,34 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	templateIDString := vars["catalog_template_version_Id"]
 	pathTokens := strings.Split(templateIDString, ":")
 
+	var catalogID, templateID, versionID string
+
 	if len(pathTokens) == 2 {
-		loadTemplateMetadata(pathTokens[0], pathTokens[1], w, r)
+		catalogID = pathTokens[0]
+		templateID = pathTokens[1]
 	} else if len(pathTokens) == 3 {
-		loadTemplateVersion(pathTokens[0], pathTokens[1], pathTokens[2], w, r)
+		catalogID = pathTokens[0]
+		templateID = pathTokens[1]
+		versionID = pathTokens[2]
 	} else {
 		log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
 		http.NotFound(w, r)
+	}
+
+	if r.URL.RawQuery != "" && strings.EqualFold("image", r.URL.RawQuery) {
+		loadFile(catalogID, templateID, versionID, manager.PathToImage, w, r)
+		return
+	}
+
+	if r.URL.RawQuery != "" && strings.EqualFold("readme", r.URL.RawQuery) {
+		loadFile(catalogID, templateID, versionID, manager.PathToReadme, w, r)
+		return
+	}
+
+	if versionID != "" {
+		loadTemplateVersion(catalogID, templateID, versionID, w, r)
+	} else {
+		loadTemplateMetadata(catalogID, templateID, w, r)
 	}
 }
 
@@ -223,20 +244,23 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	}
 }
 
-//LoadImage returns template image
-func LoadImage(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
-	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
-	log.Debugf("Request to load Image: %s", path)
-	http.ServeFile(w, r, path)
-}
+//loadFile loads the file under the catalog
+func loadFile(catalogID string, templateID string, versionID string, fileNameMap map[string]string, w http.ResponseWriter, r *http.Request) {
+	var fileID, path string
 
-//LoadFile returns template image
-func LoadFile(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
-	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
+	if versionID != "" {
+		var ok bool
+		fileID, ok = fileNameMap[catalogID+"/"+templateID+"/"+versionID]
+		if !ok {
+			fileID = fileNameMap[catalogID+"/"+templateID]
+			path = "DATA/" + catalogID + "/templates/" + templateID + "/" + fileID
+		} else {
+			path = "DATA/" + catalogID + "/templates/" + templateID + "/" + versionID + "/" + fileID
+		}
+	} else {
+		fileID = fileNameMap[catalogID+"/"+templateID]
+		path = "DATA/" + catalogID + "/templates/" + templateID + "/" + fileID
+	}
 	log.Debugf("Request to load file: %s", path)
 	http.ServeFile(w, r, path)
 }
@@ -280,9 +304,9 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string
 		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", value)
 	}
 
-	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("images", template.IconLink)
+	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("template", template.IconLink)
 	if template.ReadmeLink != "" {
-		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("files", template.ReadmeLink)
+		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("template", template.ReadmeLink)
 	}
 	if template.ProjectURL != "" {
 		template.Links["project"] = template.ProjectURL

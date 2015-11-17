@@ -85,19 +85,17 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 					subTemplate := model.Template{}
 					err := readRancherCompose(path+"/"+subfile.Name(), &subTemplate)
 					if err == nil {
-						if subTemplate.UUID != "" {
-							UUIDToPath[subTemplate.UUID] = newTemplate.Path + "/" + subfile.Name()
-							log.Debugf("UUIDToPath map: %v", UUIDToPath)
-						}
 						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
 					} else {
 						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
-					newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
+					newTemplate.IconLink = newTemplate.Id + "?image"
+					PathToImage[newTemplate.Path] = subfile.Name()
 				} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
-					newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
+					newTemplate.ReadmeLink = newTemplate.Id + "?readme"
+					PathToReadme[newTemplate.Path] = subfile.Name()
 				}
 			}
 		}
@@ -127,7 +125,7 @@ func (cat *Catalog) refreshCatalog() {
 	case *cat.refreshReqChannel <- 1:
 		err := cat.pullCatalog()
 		if err == nil {
-			log.Debug("Refreshing the catalog %s ...", cat.getID())
+			log.Debugf("Refreshing the catalog %s ...", cat.getID())
 			//walk the catalog and read the metadata to the cache
 			cat.metadata = make(map[string]model.Template)
 			filepath.Walk(cat.catalogRoot, cat.walkCatalog)
@@ -191,11 +189,6 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
 	newTemplate.Output = RC[".catalog"].Output
 
-	/*if newTemplate.UUID != "" {
-		//store uuid -> path map
-		UUIDToPath[newTemplate.UUID] = relativePath
-		log.Debugf("UUIDToPath map: %v", UUIDToPath)
-	}*/
 	return nil
 }
 
@@ -236,8 +229,9 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 		for _, subfile := range dirList {
 			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 
-				newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
+				newTemplate.IconLink = newTemplate.Id + "?image"
 				foundIcon = true
+				PathToImage[newTemplate.Path] = subfile.Name()
 
 			} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
 
@@ -248,8 +242,9 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 				readRancherCompose(CatalogRootDir+path, &newTemplate)
 			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
 
-				newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
+				newTemplate.ReadmeLink = newTemplate.Id + "?readme"
 				foundReadme = true
+				PathToReadme[newTemplate.Path] = subfile.Name()
 
 			}
 		}
