@@ -115,22 +115,16 @@ var routes = Routes{
 		ListTemplates,
 	},
 	Route{
-		"LoadTemplateMetadata",
+		"LoadTemplateDetails",
 		"GET",
-		"/v1-catalog/templates/{catalogId}/{templateId}",
-		LoadTemplateMetadata,
+		"/v1-catalog/templates/{catalog_template_version_Id}",
+		LoadTemplateDetails,
 	},
 	Route{
 		"",
 		"GET",
-		"/v1-catalog/templates/{catalogId}/{templateId}/{versionId}",
-		LoadTemplateVersion,
-	},
-	Route{
-		"",
-		"GET",
-		"/v1-catalog/templateversions/{catalogId}/{templateId}/{versionId}",
-		LoadTemplateVersion,
+		"/v1-catalog/templateversions/{catalog_template_version_Id}",
+		LoadTemplateDetails,
 	},
 	Route{
 		"LoadVersionImage",

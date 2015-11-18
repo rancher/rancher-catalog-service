@@ -3,6 +3,7 @@ package service
 import (
 	"net/http"
 	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/go-semver/semver"
@@ -131,7 +132,7 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		log.Debugf("Found Template: %s", value.Name)
+		log.Debugf("Found Template: %s", value.Id)
 		value.VersionLinks = PopulateTemplateLinks(r, &value)
 		resp.Data = append(resp.Data, value)
 	}
@@ -172,12 +173,27 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 	return copyOfversionLinks, nil
 }
 
-//LoadTemplateMetadata returns template metadata for the provided templateId
-func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
+//LoadTemplateDetails returns details of the template
+func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := vars["catalogId"] + "/" + vars["templateId"]
+	templateIDString := vars["catalog_template_version_Id"]
+	pathTokens := strings.Split(templateIDString, ":")
+
+	if len(pathTokens) == 2 {
+		loadTemplateMetadata(pathTokens[0], pathTokens[1], w, r)
+	} else if len(pathTokens) == 3 {
+		loadTemplateVersion(pathTokens[0], pathTokens[1], pathTokens[2], w, r)
+	} else {
+		log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
+		http.NotFound(w, r)
+	}
+}
+
+//loadTemplateMetadata returns template metadata for the provided templateId
+func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWriter, r *http.Request) {
+	path := catalogID + "/" + templateID
 	log.Debugf("Request to load metadata for template: %s", path)
-	templateMetadata, ok := manager.GetTemplateMetadata(vars["catalogId"], vars["templateId"])
+	templateMetadata, ok := manager.GetTemplateMetadata(catalogID, templateID)
 	if ok {
 		PopulateTemplateLinks(r, &templateMetadata)
 		api.GetApiContext(r).Write(&templateMetadata)
@@ -187,14 +203,13 @@ func LoadTemplateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//LoadTemplateVersion returns template version details for the provided templateId/versionId
-func LoadTemplateVersion(w http.ResponseWriter, r *http.Request) {
+//loadTemplateVersion returns template version details for the provided templateId/versionId
+func loadTemplateVersion(catalogID string, templateID string, versionID string, w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
-	vars := mux.Vars(r)
-	path := vars["catalogId"] + "/" + vars["templateId"] + "/" + vars["versionId"]
+	path := catalogID + "/" + templateID + "/" + versionID
 	log.Debugf("Request to load details for template version: %s", path)
 
-	template, ok := manager.ReadTemplateVersion(vars["catalogId"], vars["templateId"], vars["versionId"])
+	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
 	if ok {
 		template.Type = "templateVersion"
 		template.VersionLinks = PopulateTemplateLinks(r, template)

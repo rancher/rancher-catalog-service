@@ -239,7 +239,7 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 			copyOfversionLinks := make(map[string]string)
 			for key, value := range templateMetadata.VersionLinks {
 				if value != path {
-					otherVersionTokens := strings.Split(value, "/")
+					otherVersionTokens := strings.Split(value, ":")
 					oVersion := otherVersionTokens[2]
 					otherVersion, err := strconv.Atoi(oVersion)
 
