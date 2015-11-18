@@ -48,7 +48,7 @@ func (cat *Catalog) cloneCatalog() {
 	e.Stderr = os.Stderr
 	err := e.Run()
 	if err != nil {
-		log.Fatalf("Failed to clone the catalog from github %v", err.Error())
+		log.Fatalf("Failed to clone the catalog from git %v", err.Error())
 	}
 	cat.metadata = make(map[string]model.Template)
 	//walk the catalog and read the metadata to the cache
@@ -115,7 +115,7 @@ func (cat *Catalog) pullCatalog() error {
 
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", cat.url, err.Error())
+		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.url, err.Error())
 		return err
 	}
 	return nil
