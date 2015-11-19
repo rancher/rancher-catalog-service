@@ -2,3 +2,8 @@
 set -e
 
 godep go test ./...
+
+./bin/rancher-catalog-service -catalogUrl https://github.com/rancher/rancher-catalog.git -port 8088 &
+trap "kill $!" exit
+cd integration
+tox -e flake8,py27
