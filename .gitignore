@@ -1,2 +1,9 @@
 /bin
 /dist
+/DATA
+/integration/.idea
+/integration/.venv
+/integration/.tox
+/integration/MANIFEST
+*.swp
+*.pyc
