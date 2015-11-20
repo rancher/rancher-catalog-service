@@ -1,2 +1,5 @@
 bin
 dist
+integration/.idea
+integration/.tox
+integration/.venv

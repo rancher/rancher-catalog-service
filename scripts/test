@@ -3,6 +3,10 @@ set -e
 
 godep go test ./...
 
+if [ ! -e ./bin/rancher-catalog-service ]; then
+    ./scripts/build
+fi
+
 ./bin/rancher-catalog-service -catalogUrl https://github.com/rancher/rancher-catalog.git -port 8088 &
 trap "kill $!" exit
 cd integration
