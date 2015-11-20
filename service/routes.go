@@ -127,30 +127,6 @@ var routes = Routes{
 		LoadTemplateDetails,
 	},
 	Route{
-		"LoadVersionImage",
-		"GET",
-		"/v1-catalog/images/{catalogId}/{templateId}/{versionId}/{imageId}",
-		LoadImage,
-	},
-	Route{
-		"LoadImage",
-		"GET",
-		"/v1-catalog/images/{catalogId}/{templateId}/{imageId}",
-		LoadImage,
-	},
-	Route{
-		"LoadVersionFile",
-		"GET",
-		"/v1-catalog/files/{catalogId}/{templateId}/{versionId}/{fileId}",
-		LoadFile,
-	},
-	Route{
-		"LoadFile",
-		"GET",
-		"/v1-catalog/files/{catalogId}/{templateId}/{fileId}",
-		LoadFile,
-	},
-	Route{
 		"RefreshCatalog",
 		"POST",
 		"/v1-catalog/templates",

@@ -115,6 +115,11 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		log.Debug("Request to list all templates in the Catalog")
 	}
 
+	category := r.URL.Query().Get("category_ne")
+	if category != "" {
+		log.Debugf("And also get the templates with category not = %s", category)
+	}
+
 	//read the catalog
 	resp := model.TemplateCollection{}
 	for _, value := range templates {
@@ -130,6 +135,13 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		//if no versions are present then just skip the template
 		if len(value.VersionLinks) == 0 {
 			continue
+		}
+
+		if category != "" && value.Category != "" {
+			if strings.EqualFold(category, value.Category) {
+				//skip the templates matching the category_ne filter
+				continue
+			}
 		}
 
 		log.Debugf("Found Template: %s", value.Id)
@@ -179,13 +191,36 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	templateIDString := vars["catalog_template_version_Id"]
 	pathTokens := strings.Split(templateIDString, ":")
 
+	var catalogID, templateID, versionID string
+
 	if len(pathTokens) == 2 {
-		loadTemplateMetadata(pathTokens[0], pathTokens[1], w, r)
+		catalogID = pathTokens[0]
+		templateID = pathTokens[1]
 	} else if len(pathTokens) == 3 {
-		loadTemplateVersion(pathTokens[0], pathTokens[1], pathTokens[2], w, r)
+		catalogID = pathTokens[0]
+		templateID = pathTokens[1]
+		versionID = pathTokens[2]
 	} else {
 		log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
 		http.NotFound(w, r)
+	}
+
+	//check if request is to get image or readme file
+	imageID := r.URL.Query().Get("image")
+	if imageID != "" {
+		loadFile(catalogID, templateID, versionID, imageID, w, r)
+		return
+	}
+	fileID := r.URL.Query().Get("readme")
+	if fileID != "" {
+		loadFile(catalogID, templateID, versionID, fileID, w, r)
+		return
+	}
+
+	if versionID != "" {
+		loadTemplateVersion(catalogID, templateID, versionID, w, r)
+	} else {
+		loadTemplateMetadata(catalogID, templateID, w, r)
 	}
 }
 
@@ -223,20 +258,9 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	}
 }
 
-//LoadImage returns template image
-func LoadImage(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
-	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["imageId"]
-	log.Debugf("Request to load Image: %s", path)
-	http.ServeFile(w, r, path)
-}
-
 //LoadFile returns template image
-func LoadFile(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	//path := "DATA/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
-	path := "DATA/" + vars["catalogId"] + "/templates/" + vars["templateId"] + "/" + vars["versionId"] + "/" + vars["fileId"]
+func loadFile(catalogID string, templateID string, versionID string, fileID string, w http.ResponseWriter, r *http.Request) {
+	path := "DATA/" + catalogID + "/templates/" + templateID + "/" + versionID + "/" + fileID
 	log.Debugf("Request to load file: %s", path)
 	http.ServeFile(w, r, path)
 }

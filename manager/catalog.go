@@ -48,7 +48,7 @@ func (cat *Catalog) cloneCatalog() {
 	e.Stderr = os.Stderr
 	err := e.Run()
 	if err != nil {
-		log.Fatalf("Failed to clone the catalog from github %v", err.Error())
+		log.Fatalf("Failed to clone the catalog from git %v", err.Error())
 	}
 	cat.metadata = make(map[string]model.Template)
 	//walk the catalog and read the metadata to the cache
@@ -95,9 +95,9 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
-					newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
+					newTemplate.IconLink = newTemplate.Id + "?image=" + subfile.Name()
 				} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
-					newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
+					newTemplate.ReadmeLink = newTemplate.Id + "?readme=" + subfile.Name()
 				}
 			}
 		}
@@ -115,7 +115,7 @@ func (cat *Catalog) pullCatalog() error {
 
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from github repo %s, error: %v", cat.url, err.Error())
+		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.url, err.Error())
 		return err
 	}
 	return nil
@@ -236,7 +236,7 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 		for _, subfile := range dirList {
 			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 
-				newTemplate.IconLink = newTemplate.Path + "/" + subfile.Name()
+				newTemplate.IconLink = newTemplate.Id + "?image=" + subfile.Name()
 				foundIcon = true
 
 			} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
@@ -248,7 +248,7 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 				readRancherCompose(CatalogRootDir+path, &newTemplate)
 			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
 
-				newTemplate.ReadmeLink = newTemplate.Path + "/" + subfile.Name()
+				newTemplate.ReadmeLink = newTemplate.Id + "?readme=" + subfile.Name()
 				foundReadme = true
 
 			}
