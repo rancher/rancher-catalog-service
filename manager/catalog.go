@@ -53,6 +53,10 @@ func (cat *Catalog) cloneCatalog() {
 	cat.metadata = make(map[string]model.Template)
 	//walk the catalog and read the metadata to the cache
 	filepath.Walk(cat.catalogRoot, cat.walkCatalog)
+	if ValidationMode {
+		log.Infof("Catalog loaded without errors")
+		os.Exit(0)
+	}
 }
 
 func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
@@ -88,6 +92,9 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
 					} else {
+						if ValidationMode {
+							log.Fatalf("Error processing the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
+						}
 						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {

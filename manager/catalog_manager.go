@@ -29,6 +29,8 @@ var (
 	refreshInterval = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
 	logFile         = flag.String("logFile", "", "Log file")
 	debug           = flag.Bool("debug", false, "Debug")
+	validate        = flag.Bool("validate", false, "Validate catalog yaml and exit")
+
 	// Port is the listen port of the HTTP server
 	Port              = flag.Int("port", 8088, "HTTP listen port")
 	refreshReqChannel = make(chan int, 1)
@@ -41,6 +43,9 @@ var (
 	PathToImage map[string]string
 	//PathToReadme holds the mapping between a template path in the repo to its readme file name
 	PathToReadme map[string]string
+
+	//ValidationMode is used to determine if code is just checking Yaml syntax
+	ValidationMode bool
 
 	catalogURL arrayFlags
 )
@@ -55,6 +60,10 @@ func SetEnv() {
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	if *validate {
+		ValidationMode = true
 	}
 
 	if *logFile != "" {
