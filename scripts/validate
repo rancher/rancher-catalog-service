@@ -32,7 +32,7 @@ lint_files()
 
 vet()
 {
-    for i in $(find -type d | grep -vE '(Godep|.git|bin|dist|DATA|scripts)'); do
+    for i in $(find -type d | grep -vE '(Godep|.git|bin|dist|DATA|scripts|integration)'); do
         go vet $i
     done
 }
