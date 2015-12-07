@@ -88,24 +88,27 @@ func SetEnv() {
 		for _, value := range catalogURL {
 			value = strings.TrimSpace(value)
 			if value != "" {
-				tokens := strings.Split(value, "=")
-				if len(tokens) == 1 {
-					//add a default catalogName
-					if defaultFound {
-						log.Fatalf("Please specify a catalog name for %s", tokens[0])
+				urls := strings.Split(value, ",")
+				for _, singleURL := range urls {
+					tokens := strings.Split(singleURL, "=")
+					if len(tokens) == 1 {
+						//add a default catalogName
+						if defaultFound {
+							log.Fatalf("Please specify a catalog name for %s", tokens[0])
+						}
+						defaultFound = true
+						tokens = append(tokens, tokens[0])
+						tokens[0] = "library"
 					}
-					defaultFound = true
-					tokens = append(tokens, tokens[0])
-					tokens[0] = "library"
+					newCatalog := Catalog{}
+					newCatalog.CatalogID = tokens[0]
+					newCatalog.url = tokens[1]
+					refChan := make(chan int, 1)
+					newCatalog.refreshReqChannel = &refChan
+					newCatalog.catalogRoot = CatalogRootDir + tokens[0]
+					CatalogsCollection[tokens[0]] = &newCatalog
+					log.Infof("Using catalog %s=%s", tokens[0], tokens[1])
 				}
-				newCatalog := Catalog{}
-				newCatalog.CatalogID = tokens[0]
-				newCatalog.url = tokens[1]
-				refChan := make(chan int, 1)
-				newCatalog.refreshReqChannel = &refChan
-				newCatalog.catalogRoot = CatalogRootDir + tokens[0]
-				CatalogsCollection[tokens[0]] = &newCatalog
-				log.Infof("Using catalog %s=%s", tokens[0], tokens[1])
 			}
 		}
 	} else {
