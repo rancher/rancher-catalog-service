@@ -25,13 +25,13 @@
 		},
 		{
 			"ImportPath": "github.com/rancher/go-rancher/api",
-			"Comment": "v0.1.0-103-g7b15024",
-			"Rev": "7b150245cc041257a68cd9b01e3de8b9469a559c"
+			"Comment": "v0.1.0-116-g575db0b",
+			"Rev": "575db0bb6771627c6475476662d36ec2a888cdf5"
 		},
 		{
 			"ImportPath": "github.com/rancher/go-rancher/client",
-			"Comment": "v0.1.0-103-g7b15024",
-			"Rev": "7b150245cc041257a68cd9b01e3de8b9469a559c"
+			"Comment": "v0.1.0-116-g575db0b",
+			"Rev": "575db0bb6771627c6475476662d36ec2a888cdf5"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
