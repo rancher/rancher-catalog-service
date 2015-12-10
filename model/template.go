@@ -5,6 +5,7 @@ import "github.com/rancher/go-rancher/client"
 //Template structure defines all properties that can be present in a template
 type Template struct {
 	client.Resource
+	CatalogID                     string            `json:"catalogId"`
 	Name                          string            `json:"name"`
 	UUID                          string            `json:"uuid"`
 	Category                      string            `json:"category"`

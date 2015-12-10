@@ -101,6 +101,11 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 	var templates []model.Template
 	catalogID := r.URL.Query().Get("catalog")
+
+	if catalogID == "" {
+		catalogID = r.URL.Query().Get("catalogId")
+	}
+
 	if catalogID != "" {
 		log.Debugf("Request to get templates for catalog %s", catalogID)
 		templates = manager.ListTemplatesForCatalog(catalogID)

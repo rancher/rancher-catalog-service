@@ -78,6 +78,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 
 		//list the folders under the root level
 		newTemplate.VersionLinks = make(map[string]string)
+		newTemplate.CatalogID = cat.CatalogID
 		newTemplate.TemplateVersionRancherVersion = make(map[string]string)
 		dirList, err := ioutil.ReadDir(path)
 		if err != nil {
@@ -225,6 +226,7 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 		newTemplate := model.Template{}
 		newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
 		newTemplate.Id = cat.CatalogID + ":" + templateID + ":" + versionID
+		newTemplate.CatalogID = cat.CatalogID
 
 		if err != nil {
 			log.Errorf("Error reading template at path: %s, error: %v", path, err)
