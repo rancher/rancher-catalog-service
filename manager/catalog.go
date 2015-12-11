@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancher/go-rancher/client"
@@ -30,7 +31,10 @@ type Catalog struct {
 	CatalogID         string `json:"id"`
 	Description       string `json:"description"`
 	CatalogLink       string `json:"catalogLink"`
-	url               string
+	URL               string `json:"uri"`
+	State             string `json:"state"`
+	LastUpdated       string `json:"lastUpdated"`
+	Message           string `json:"message"`
 	catalogRoot       string
 	refreshReqChannel *chan int
 	metadata          map[string]model.Template
@@ -40,15 +44,19 @@ func (cat *Catalog) getID() string {
 	return cat.CatalogID
 }
 
-func (cat *Catalog) cloneCatalog() {
-	log.Infof("Cloning the catalog from git url %s", cat.url)
+func (cat *Catalog) cloneCatalog() error {
+	log.Infof("Cloning the catalog from git url %s", cat.URL)
 	//git clone the repo
-	e := exec.Command("git", "clone", cat.url, cat.catalogRoot)
+	e := exec.Command("git", "clone", cat.URL, cat.catalogRoot)
 	e.Stdout = os.Stdout
 	e.Stderr = os.Stderr
 	err := e.Run()
 	if err != nil {
-		log.Fatalf("Failed to clone the catalog from git %v", err.Error())
+		errorStr := "Failed to clone the catalog from git err: " + err.Error()
+		log.Error(errorStr)
+		cat.State = "error"
+		cat.Message = errorStr
+		return err
 	}
 	cat.metadata = make(map[string]model.Template)
 	//walk the catalog and read the metadata to the cache
@@ -57,6 +65,9 @@ func (cat *Catalog) cloneCatalog() {
 		log.Infof("Catalog loaded without errors")
 		os.Exit(0)
 	}
+	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.State = "active"
+	return nil
 }
 
 func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
@@ -121,9 +132,11 @@ func (cat *Catalog) pullCatalog() error {
 
 	err := e.Run()
 	if err != nil {
-		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.url, err.Error())
+		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.URL, err.Error())
 		return err
 	}
+	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.State = "active"
 	return nil
 }
 
