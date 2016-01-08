@@ -115,7 +115,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 }
 
 func (cat *Catalog) pullCatalog() error {
-	log.Infof("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
+	log.Debugf("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
 
 	e := exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
 
