@@ -180,9 +180,6 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			template.Category = config["category"]
 			template.Description = config["description"]
 			template.Version = config["version"]
-			if config["uuid"] != "" {
-				template.UUID = config["uuid"]
-			}
 			template.Maintainer = config["maintainer"]
 			template.License = config["license"]
 			template.ProjectURL = config["projectURL"]
@@ -204,7 +201,6 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	}
 	newTemplate.Questions = RC[".catalog"].Questions
 	newTemplate.Name = RC[".catalog"].Name
-	newTemplate.UUID = RC[".catalog"].UUID
 	newTemplate.Description = RC[".catalog"].Description
 	newTemplate.Version = RC[".catalog"].Version
 	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion

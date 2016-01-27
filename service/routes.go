@@ -66,6 +66,11 @@ func NewRouter() *mux.Router {
 
 	// Template
 	template := schemas.AddType("template", model.Template{})
+	refreshAction := client.Action{}
+	tempActions := make(map[string]client.Action)
+	tempActions["refresh"] = refreshAction
+	template.CollectionActions = tempActions
+
 	delete(template.ResourceFields, "rancherCompose")
 	delete(template.ResourceFields, "dockerCompose")
 	delete(template.ResourceFields, "uuid")
@@ -102,7 +107,7 @@ func NewRouter() *mux.Router {
 			Handler(api.ApiHandler(schemas, route.HandlerFunc))
 	}
 
-	router.GetRoute("RefreshCatalog").Queries("refresh", "")
+	router.GetRoute("RefreshCatalog").Queries("action", "refresh")
 
 	return router
 }

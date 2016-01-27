@@ -251,7 +251,6 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	if ok {
 		template.Type = "templateVersion"
 		template.VersionLinks = PopulateTemplateLinks(r, template)
-		template.UUID = template.Id
 		upgradeInfo := GetUpgradeInfo(r, template.Path)
 		template.UpgradeVersionLinks = upgradeInfo.NewVersionLinks
 		api.GetApiContext(r).Write(&template)
