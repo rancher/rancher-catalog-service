@@ -226,7 +226,10 @@ func ListTemplatesForCatalog(catalogID string) []model.Template {
 
 //GetTemplateMetadata gets the metadata of the specified template from the given catalog
 func GetTemplateMetadata(catalogID string, templateID string) (model.Template, bool) {
-	cat := CatalogsCollection[catalogID]
+	cat, ok := CatalogsCollection[catalogID]
+	if !ok {
+		return model.Template{}, ok
+	}
 	template, ok := cat.metadata[catalogID+"/"+templateID]
 	return template, ok
 }

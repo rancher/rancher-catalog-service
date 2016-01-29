@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -47,7 +48,7 @@ func GetCatalog(w http.ResponseWriter, r *http.Request) {
 		apiContext.Write(&catalog)
 	} else {
 		log.Debugf("Cannot find catalog by catalogID: %s", catalogID)
-		http.NotFound(w, r)
+		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find catalog by catalogID: %s", catalogID))
 	}
 
 }
@@ -207,7 +208,7 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 		versionID = pathTokens[2]
 	} else {
 		log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
-		http.NotFound(w, r)
+		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find metadata for template Id: %s", templateIDString))
 	}
 
 	if r.URL.RawQuery != "" && strings.EqualFold("image", r.URL.RawQuery) {
@@ -230,6 +231,7 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 //loadTemplateMetadata returns template metadata for the provided templateId
 func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWriter, r *http.Request) {
 	path := catalogID + "/" + templateID
+	tempID := catalogID + ":" + templateID
 	log.Debugf("Request to load metadata for template: %s", path)
 	templateMetadata, ok := manager.GetTemplateMetadata(catalogID, templateID)
 	if ok {
@@ -237,13 +239,14 @@ func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWr
 		api.GetApiContext(r).Write(&templateMetadata)
 	} else {
 		log.Debugf("Cannot find metadata for template: %s", path)
-		http.NotFound(w, r)
+		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find metadata for template: %s", tempID))
 	}
 }
 
 //loadTemplateVersion returns template version details for the provided templateId/versionId
 func loadTemplateVersion(catalogID string, templateID string, versionID string, w http.ResponseWriter, r *http.Request) {
 	//read the template version from disk
+	tempVersionID := catalogID + ":" + templateID + ":" + versionID
 	path := catalogID + "/" + templateID + "/" + versionID
 	log.Debugf("Request to load details for template version: %s", path)
 
@@ -256,7 +259,7 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 		api.GetApiContext(r).Write(&template)
 	} else {
 		log.Debugf("Cannot find template: %s", path)
-		http.NotFound(w, r)
+		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find template: %s", tempVersionID))
 	}
 }
 
