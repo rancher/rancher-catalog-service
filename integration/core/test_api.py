@@ -52,3 +52,33 @@ def test_template_not_found(client):
     assert error['message'] is not None
     assert error['status'] is not None
     assert error['status'] == "404"
+
+
+def test_templatebase_eq_filter(client):
+    templates = client.list_template(templateBase_eq='invalid')
+    assert len(templates) == 0
+
+
+def test_templatebase_ne_filter(client):
+    templates = client.list_template(templateBase_ne='invalid')
+    assert len(templates) > 0
+
+
+def test_template_files_map(client):
+    templates = client.list_template()
+    assert len(templates) > 0
+    versionUrls = templates[0].versionLinks.values()
+
+    url = versionUrls[0]
+    response = requests.get(url)
+    assert response.status_code == 200
+    resp = response.json()
+    assert resp['files'] is not None
+    assert resp['files']['rancher-compose.yml'] is not None
+
+
+def test_template_base(client):
+    templates = client.list_template()
+    assert len(templates) > 0
+    for i in range(len(templates)):
+        assert templates[i].templateBase is not None

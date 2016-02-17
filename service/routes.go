@@ -127,6 +127,7 @@ func NewRouter() *mux.Router {
 	}
 
 	router.GetRoute("RefreshCatalog").Queries("action", "refresh")
+	router.GetRoute("RefreshCatalogTemplates").Queries("action", "refresh")
 
 	return router
 }
@@ -154,6 +155,12 @@ var routes = Routes{
 		"RefreshCatalog",
 		"POST",
 		"/v1-catalog/templates",
+		RefreshCatalog,
+	},
+	Route{
+		"RefreshCatalogTemplates",
+		"POST",
+		"/v1-catalog/catalogs/{catalogId}/templates",
 		RefreshCatalog,
 	},
 	//http://<server_ip>:8088/v1/upgrades/<template_uuid>

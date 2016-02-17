@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	metadataFolder = regexp.MustCompile(`^DATA/[^/]+/templates/[^/]+$`)
+	metadataFolder = regexp.MustCompile(`^DATA/[^/]+/((\w+)+-templates|templates)/[^/]+$`)
 )
 
 //CatalogCollection holds a collection of catalogs
@@ -75,13 +75,22 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 
 	if f != nil && f.IsDir() && metadataFolder.MatchString(path) {
 
+		//matches ./DATA/catalogID/templates/ElasticSearch or 	./DATA/catalogID/k8s-templates/ElasticSearch
+		// get the prefix like 'k8s' if any
+		prefix := metadataFolder.ReplaceAllString(path, "$2")
+		prefixWithSeparator := prefix
+		if prefix != "" {
+			prefixWithSeparator = prefix + "*"
+		}
+
 		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), path)
 		newTemplate := model.Template{
 			Resource: client.Resource{
-				Id:   cat.CatalogID + ":" + f.Name(),
+				Id:   cat.CatalogID + ":" + prefixWithSeparator + f.Name(),
 				Type: "template",
 			},
-			Path: cat.CatalogID + "/" + f.Name(), //catalogRoot + f.Name()
+			Path:         cat.CatalogID + "/" + prefixWithSeparator + f.Name(), //catalogRoot + prefix + f.Name()
+			TemplateBase: prefix,
 		}
 
 		//read the root level config.yml
@@ -193,7 +202,6 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	if err != nil {
 		return nil
 	}
-	newTemplate.RancherCompose = string(*composeBytes)
 
 	//read the questions section
 	RC := make(map[string]model.RancherCompose)
@@ -226,26 +234,42 @@ func readFile(relativePath string, fileName string) (*[]byte, error) {
 	return &composeBytes, nil
 }
 
+//ExtractTemplatePrefixAndName reads the template prefix and name
+func ExtractTemplatePrefixAndName(templateID string) (string, string) {
+	var prefix, suffix string
+	prefix = "templates"
+	suffix = templateID
+
+	if strings.Contains(templateID, "*") {
+		prefix = strings.Split(templateID, "*")[0] + "-templates"
+		suffix = strings.Split(templateID, "*")[1]
+	}
+	return prefix, suffix
+}
+
 //ReadTemplateVersion reads the template version details
 func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*model.Template, bool) {
 
-	path := cat.CatalogID + "/templates/" + templateID + "/" + versionID
+	prefix, templateName := ExtractTemplatePrefixAndName(templateID)
+	path := cat.CatalogID + "/" + prefix + "/" + templateName + "/" + versionID
 	parentPath := cat.CatalogID + "/" + templateID
-	_, ok := cat.metadata[parentPath]
+	parentMetadata, ok := cat.metadata[parentPath]
 
 	if ok {
 		dirList, err := ioutil.ReadDir(CatalogRootDir + path)
 		newTemplate := model.Template{}
 		newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
+		newTemplate.TemplateBase = parentMetadata.TemplateBase
 		newTemplate.Id = cat.CatalogID + ":" + templateID + ":" + versionID
 		newTemplate.CatalogID = cat.CatalogID
+		newTemplate.Files = make(map[string]string)
 
 		if err != nil {
 			log.Errorf("Error reading template at path: %s, error: %v", path, err)
 			return nil, false
 		}
 
-		var foundIcon, foundReadme, foundDcompose, foundRcompose bool
+		var foundIcon, foundReadme bool
 
 		for _, subfile := range dirList {
 			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
@@ -254,60 +278,35 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 				foundIcon = true
 				PathToImage[newTemplate.Path] = subfile.Name()
 
-			} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
-
-				composeBytes, err := readFile(CatalogRootDir+path, subfile.Name())
-				if err == nil {
-					newTemplate.DockerCompose = string(*(composeBytes))
-					foundDcompose = true
-				} else {
-					log.Errorf("docker-compose is missing in this template version: %s, error: %v", path+"/"+subfile.Name(), err)
-					foundDcompose = false
-				}
-			} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
-
-				err := readRancherCompose(CatalogRootDir+path, &newTemplate)
-				if err != nil {
-					log.Errorf("rancher-compose is missing in this template version: %s, error: %v", path+"/"+subfile.Name(), err)
-					foundRcompose = false
-				} else {
-					foundRcompose = true
-				}
-
 			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
 
 				newTemplate.ReadmeLink = newTemplate.Id + "?readme"
 				foundReadme = true
 				PathToReadme[newTemplate.Path] = subfile.Name()
 
+			} else {
+				//read if its a file and put it in the files map
+				if !subfile.IsDir() {
+					bytes, err := readFile(CatalogRootDir+path, subfile.Name())
+					if err != nil {
+						continue
+					}
+					newTemplate.Files[subfile.Name()] = string(*bytes)
+					if strings.HasPrefix(subfile.Name(), "rancher-compose") {
+						readRancherCompose(CatalogRootDir+path, &newTemplate)
+					}
+				}
 			}
 		}
+
 		if !foundIcon {
 			//use the parent icon
-			parentMetadata, ok := cat.metadata[parentPath]
-			if ok {
-				newTemplate.IconLink = parentMetadata.IconLink
-			} else {
-				log.Debugf("Could not find the parent metadata %s", parentPath)
-			}
+			newTemplate.IconLink = parentMetadata.IconLink
 		}
 
 		if !foundReadme {
 			//use the parent readme
-			parentMetadata, ok := cat.metadata[parentPath]
-			if ok {
-				newTemplate.ReadmeLink = parentMetadata.ReadmeLink
-			} else {
-				log.Debugf("Could not find the parent metadata %s", parentPath)
-			}
-		}
-
-		if !foundDcompose {
-			log.Errorf("docker-compose is missing in this template version: %s", path)
-		}
-
-		if !foundRcompose {
-			log.Infof("rancher-compose is missing in this template version: %s", path)
+			newTemplate.ReadmeLink = parentMetadata.ReadmeLink
 		}
 
 		return &newTemplate, true
