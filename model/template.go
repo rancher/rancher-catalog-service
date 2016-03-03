@@ -7,7 +7,6 @@ type Template struct {
 	client.Resource
 	CatalogID                     string            `json:"catalogId"`
 	Name                          string            `json:"name"`
-	UUID                          string            `json:"uuid"`
 	Category                      string            `json:"category"`
 	Description                   string            `json:"description"`
 	Version                       string            `json:"version"`
