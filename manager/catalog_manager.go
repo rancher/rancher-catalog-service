@@ -55,7 +55,7 @@ const CatalogRootDir string = "./DATA/"
 
 //SetEnv parses the command line args and sets the necessary variables
 func SetEnv() {
-	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id:repo_url. Specify the flag multiple times for multiple repos")
+	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id=repo_url. Specify the flag multiple times for multiple repos")
 	flag.Parse()
 
 	if *debug {
@@ -86,6 +86,7 @@ func SetEnv() {
 		defaultFound := false
 
 		for _, value := range catalogURL {
+			log.Debug("url %s", value)
 			value = strings.TrimSpace(value)
 			if value != "" {
 				urls := strings.Split(value, ",")
@@ -102,7 +103,7 @@ func SetEnv() {
 					}
 					newCatalog := Catalog{}
 					newCatalog.CatalogID = tokens[0]
-					newCatalog.url = tokens[1]
+					newCatalog.URL = tokens[1]
 					refChan := make(chan int, 1)
 					newCatalog.refreshReqChannel = &refChan
 					newCatalog.catalogRoot = CatalogRootDir + tokens[0]
@@ -162,7 +163,7 @@ func RefreshAllCatalogs() {
 //ListAllCatalogs lists the catalog id's and links
 func ListAllCatalogs() []Catalog {
 	var catalogCollection []Catalog
-	for catalogID := range CatalogsCollection {
+	for catalogID, cat := range CatalogsCollection {
 		catalog := Catalog{
 			Resource: client.Resource{
 				Id:   catalogID,
@@ -171,6 +172,10 @@ func ListAllCatalogs() []Catalog {
 		}
 		catalog.CatalogID = catalogID
 		catalog.CatalogLink = catalogID + "/templates"
+		catalog.State = cat.State
+		catalog.URL = cat.URL
+		catalog.Message = cat.Message
+		catalog.LastUpdated = cat.LastUpdated
 		catalogCollection = append(catalogCollection, catalog)
 	}
 	return catalogCollection
@@ -187,6 +192,10 @@ func GetCatalog(catalogID string) (Catalog, bool) {
 	if ok {
 		catalog.Id = cat.CatalogID
 		catalog.CatalogID = cat.CatalogID
+		catalog.State = cat.State
+		catalog.URL = cat.URL
+		catalog.Message = cat.Message
+		catalog.LastUpdated = cat.LastUpdated
 		catalog.CatalogLink = cat.CatalogID + "/templates"
 	}
 	return catalog, ok
