@@ -45,7 +45,7 @@ func (cat *Catalog) getID() string {
 }
 
 func (cat *Catalog) cloneCatalog() error {
-	log.Infof("Cloning the catalog from git url %s", cat.URL)
+	log.Infof("Cloning the catalog from git URL %s", cat.URL)
 	//git clone the repo
 	e := exec.Command("git", "clone", cat.URL, cat.catalogRoot)
 	e.Stdout = os.Stdout

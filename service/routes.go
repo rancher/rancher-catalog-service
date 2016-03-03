@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -29,13 +30,25 @@ func (httpWrapper *MuxWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		httpWrapper.Router.ServeHTTP(w, r)
 	} else {
 		log.Debugf("Service Unavailable")
-		httpWrapper.returnCode503(w, r)
+		ReturnHTTPError(w, r, http.StatusServiceUnavailable, "Catalog Service is not yet available, please try again later")
 	}
 }
 
-func (httpWrapper *MuxWrapper) returnCode503(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusServiceUnavailable)
-	w.Write([]byte("Catalog Service is not yet available, please try again later"))
+//ReturnHTTPError handles sending out CatalogError response
+func ReturnHTTPError(w http.ResponseWriter, r *http.Request, httpStatus int, errorMessage string) {
+	w.WriteHeader(httpStatus)
+
+	err := model.CatalogError{
+		Resource: client.Resource{
+			Type: "error",
+		},
+		Status:  strconv.Itoa(httpStatus),
+		Message: errorMessage,
+	}
+
+	api.CreateApiContext(w, r, schemas)
+	api.GetApiContext(r).Write(&err)
+
 }
 
 //Route defines the properties of a go mux http route
@@ -46,12 +59,14 @@ type Route struct {
 	HandlerFunc http.HandlerFunc
 }
 
+var schemas *client.Schemas
+
 //Routes array of Route defined
 type Routes []Route
 
 //NewRouter creates and configures a mux router
 func NewRouter() *mux.Router {
-	schemas := &client.Schemas{}
+	schemas = &client.Schemas{}
 
 	// ApiVersion
 	apiVersion := schemas.AddType("apiVersion", client.Resource{})
@@ -88,6 +103,10 @@ func NewRouter() *mux.Router {
 	// Catalog
 	catalog := schemas.AddType("catalog", manager.Catalog{})
 	delete(catalog.ResourceFields, "catalogLink")
+
+	// Error
+	err := schemas.AddType("error", model.CatalogError{})
+	err.CollectionMethods = []string{}
 
 	// API framework routes
 	router := mux.NewRouter().StrictSlash(true)
