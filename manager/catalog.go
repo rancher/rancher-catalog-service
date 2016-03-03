@@ -189,12 +189,15 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 
 func readRancherCompose(relativePath string, newTemplate *model.Template) error {
 
-	composeBytes := readFile(relativePath, "rancher-compose.yml")
+	composeBytes, err := readFile(relativePath, "rancher-compose.yml")
+	if err != nil {
+		return nil
+	}
 	newTemplate.RancherCompose = string(*composeBytes)
 
 	//read the questions section
 	RC := make(map[string]model.RancherCompose)
-	err := yaml.Unmarshal(*composeBytes, &RC)
+	err = yaml.Unmarshal(*composeBytes, &RC)
 	if err != nil {
 		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", relativePath, err)
 		return err
@@ -209,7 +212,7 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	return nil
 }
 
-func readFile(relativePath string, fileName string) *[]byte {
+func readFile(relativePath string, fileName string) (*[]byte, error) {
 	filename, err := filepath.Abs(relativePath + "/" + fileName)
 	if err != nil {
 		log.Errorf("Error forming path to file %s, error: %v", relativePath+"/"+fileName, err)
@@ -218,9 +221,9 @@ func readFile(relativePath string, fileName string) *[]byte {
 	composeBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Errorf("Error reading file %s, error: %v", relativePath+"/"+fileName, err)
-		return nil
+		return nil, err
 	}
-	return &composeBytes
+	return &composeBytes, nil
 }
 
 //ReadTemplateVersion reads the template version details
@@ -242,7 +245,7 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 			return nil, false
 		}
 
-		var foundIcon, foundReadme bool
+		var foundIcon, foundReadme, foundDcompose, foundRcompose bool
 
 		for _, subfile := range dirList {
 			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
@@ -253,11 +256,24 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 
 			} else if strings.HasPrefix(subfile.Name(), "docker-compose") {
 
-				newTemplate.DockerCompose = string(*(readFile(CatalogRootDir+path, subfile.Name())))
-
+				composeBytes, err := readFile(CatalogRootDir+path, subfile.Name())
+				if err == nil {
+					newTemplate.DockerCompose = string(*(composeBytes))
+					foundDcompose = true
+				} else {
+					log.Errorf("docker-compose is missing in this template version: %s, error: %v", path+"/"+subfile.Name(), err)
+					foundDcompose = false
+				}
 			} else if strings.HasPrefix(subfile.Name(), "rancher-compose") {
 
-				readRancherCompose(CatalogRootDir+path, &newTemplate)
+				err := readRancherCompose(CatalogRootDir+path, &newTemplate)
+				if err != nil {
+					log.Errorf("rancher-compose is missing in this template version: %s, error: %v", path+"/"+subfile.Name(), err)
+					foundRcompose = false
+				} else {
+					foundRcompose = true
+				}
+
 			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
 
 				newTemplate.ReadmeLink = newTemplate.Id + "?readme"
@@ -284,6 +300,14 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 			} else {
 				log.Debugf("Could not find the parent metadata %s", parentPath)
 			}
+		}
+
+		if !foundDcompose {
+			log.Errorf("docker-compose is missing in this template version: %s", path)
+		}
+
+		if !foundRcompose {
+			log.Infof("rancher-compose is missing in this template version: %s", path)
 		}
 
 		return &newTemplate, true
