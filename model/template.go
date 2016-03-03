@@ -14,8 +14,7 @@ type Template struct {
 	IconLink                      string            `json:"iconLink"`
 	VersionLinks                  map[string]string `json:"versionLinks"`
 	UpgradeVersionLinks           map[string]string `json:"upgradeVersionLinks"`
-	DockerCompose                 string            `json:"dockerCompose"`
-	RancherCompose                string            `json:"rancherCompose"`
+	Files                         map[string]string `json:"files"`
 	Questions                     []Question        `json:"questions"`
 	Path                          string            `json:"path"`
 	MinimumRancherVersion         string            `json:"minimumRancherVersion"`
@@ -25,6 +24,7 @@ type Template struct {
 	ProjectURL                    string `json:"projectURL"`
 	ReadmeLink                    string `json:"readmeLink"`
 	Output                        Output `json:"output" yaml:"output,omitempty"`
+	TemplateBase                  string `json:"templateBase"`
 }
 
 //TemplateCollection holds a collection of templates

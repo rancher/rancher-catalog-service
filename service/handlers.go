@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -92,6 +93,8 @@ func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
 			resp.Data = append(resp.Data, value)
 		}
 
+		resp.Actions = make(map[string]string)
+		resp.Actions["refresh"] = api.GetApiContext(r).UrlBuilder.ReferenceByIdLink("template", "") + "?action=refresh"
 		apiContext.Write(&resp)
 	}
 
@@ -111,24 +114,42 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Request to get templates for catalog %s", catalogID)
 		templates = manager.ListTemplatesForCatalog(catalogID)
 	} else {
+		log.Debugf("Request to get templates from all catalogs ")
 		templates = manager.ListAllTemplates()
+	}
+
+	//List the filters
+
+	templateBaseEq := r.URL.Query().Get("templateBase_eq")
+	if templateBaseEq != "" {
+		log.Debugf("And only get %s templates ", templateBaseEq)
+	}
+	templateBaseNe := r.URL.Query().Get("templateBase_ne")
+	if templateBaseNe != "" {
+		log.Debugf("And not the %s templates ", templateBaseNe)
 	}
 
 	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
 	if rancherVersion != "" {
-		log.Debugf("Request to get all templates with minimumRancherVersion <= %s", rancherVersion)
-	} else {
-		log.Debug("Request to list all templates in the Catalog")
+		log.Debugf("And templates with minimumRancherVersion <= %s", rancherVersion)
 	}
 
 	category := r.URL.Query().Get("category_ne")
 	if category != "" {
-		log.Debugf("And also get the templates with category not = %s", category)
+		log.Debugf("And templates with category not = %s", category)
 	}
 
 	//read the catalog
 	resp := model.TemplateCollection{}
 	for _, value := range templates {
+		if templateBaseEq != "" && !strings.Contains(value.Id, templateBaseEq+"*") {
+			continue
+		}
+
+		if templateBaseNe != "" && strings.Contains(value.Id, templateBaseNe+"*") {
+			continue
+		}
+
 		if rancherVersion != "" {
 			var err error
 			value.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &value)
@@ -155,6 +176,8 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		resp.Data = append(resp.Data, value)
 	}
 
+	resp.Actions = make(map[string]string)
+	resp.Actions["refresh"] = api.GetApiContext(r).UrlBuilder.ReferenceByIdLink("template", "") + "?action=refresh"
 	api.GetApiContext(r).Write(&resp)
 }
 
@@ -195,6 +218,7 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateIDString := vars["catalog_template_version_Id"]
+	log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
 	pathTokens := strings.Split(templateIDString, ":")
 
 	var catalogID, templateID, versionID string
@@ -267,18 +291,20 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 func loadFile(catalogID string, templateID string, versionID string, fileNameMap map[string]string, w http.ResponseWriter, r *http.Request) {
 	var fileID, path string
 
+	prefix, templateName := manager.ExtractTemplatePrefixAndName(templateID)
+
 	if versionID != "" {
 		var ok bool
 		fileID, ok = fileNameMap[catalogID+"/"+templateID+"/"+versionID]
 		if !ok {
 			fileID = fileNameMap[catalogID+"/"+templateID]
-			path = "DATA/" + catalogID + "/templates/" + templateID + "/" + fileID
+			path = "DATA/" + catalogID + "/" + prefix + "/" + templateName + "/" + fileID
 		} else {
-			path = "DATA/" + catalogID + "/templates/" + templateID + "/" + versionID + "/" + fileID
+			path = "DATA/" + catalogID + "/" + prefix + "/" + templateName + "/" + versionID + "/" + fileID
 		}
 	} else {
 		fileID = fileNameMap[catalogID+"/"+templateID]
-		path = "DATA/" + catalogID + "/templates/" + templateID + "/" + fileID
+		path = "DATA/" + catalogID + "/" + prefix + "/" + templateName + "/" + fileID
 	}
 	log.Debugf("Request to load file: %s", path)
 	http.ServeFile(w, r, path)
@@ -288,6 +314,8 @@ func loadFile(catalogID string, templateID string, versionID string, fileNameMap
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
 	manager.RefreshAllCatalogs()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode("{}")
 }
 
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
