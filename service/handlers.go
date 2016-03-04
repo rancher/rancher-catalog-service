@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -29,7 +30,8 @@ func ListCatalogs(w http.ResponseWriter, r *http.Request) {
 			value.Links = map[string]string{}
 		}
 
-		value.Links["templates"] = apiContext.UrlBuilder.ReferenceByIdLink("catalog", value.CatalogLink)
+		value.Links["templates"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("catalog", value.CatalogLink))
+		value.Links["self"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("catalog", value.Id))
 		resp.Data = append(resp.Data, value)
 	}
 
@@ -45,7 +47,11 @@ func GetCatalog(w http.ResponseWriter, r *http.Request) {
 	catalog, ok := manager.GetCatalog(catalogID)
 
 	if ok {
-		catalog.CatalogLink = apiContext.UrlBuilder.ReferenceByIdLink("catalog", catalog.CatalogLink)
+		catalog.CatalogLink = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("catalog", catalog.CatalogLink))
+		if catalog.Links == nil {
+			catalog.Links = map[string]string{}
+		}
+		catalog.Links["self"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("catalog", catalog.Id))
 		apiContext.Write(&catalog)
 	} else {
 		log.Debugf("Cannot find catalog by catalogID: %s", catalogID)
@@ -348,19 +354,30 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string
 
 	copyOfversionLinks := make(map[string]string)
 	for key, value := range template.VersionLinks {
-		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", value)
+		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", URLEncoded(value))
 	}
 
-	template.Links["icon"] = apiContext.UrlBuilder.ReferenceByIdLink("template", template.IconLink)
+	template.Links["icon"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", template.IconLink))
 	if template.ReadmeLink != "" {
-		template.Links["readme"] = apiContext.UrlBuilder.ReferenceByIdLink("template", template.ReadmeLink)
+		template.Links["readme"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", template.ReadmeLink))
 	}
 	if template.ProjectURL != "" {
 		template.Links["project"] = template.ProjectURL
 	}
+	template.Links["self"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", template.Id))
 
 	template.VersionLinks = copyOfversionLinks
 	template.DefaultVersion = template.Version
 
 	return copyOfversionLinks
+}
+
+//URLEncoded encodes the urls so that spaces are allowed in resource names
+func URLEncoded(str string) string {
+	u, err := url.Parse(str)
+	if err != nil {
+		log.Errorf("Error encoding the url: %s , error: %v", str, err)
+		return str
+	}
+	return u.String()
 }
