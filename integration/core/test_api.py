@@ -31,7 +31,7 @@ def test_template_list(client):
 def test_refresh_catalog(client):
     url = 'http://localhost:8088/v1-catalog/templates?action=refresh'
     response = requests.post(url)
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_catalog_not_found(client):
