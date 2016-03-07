@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -321,7 +320,7 @@ func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
 	manager.RefreshAllCatalogs()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode("{}")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
