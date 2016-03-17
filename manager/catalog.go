@@ -256,7 +256,6 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 	parentMetadata, ok := cat.metadata[parentPath]
 
 	if ok {
-		dirList, err := ioutil.ReadDir(CatalogRootDir + path)
 		newTemplate := model.Template{}
 		newTemplate.Path = cat.CatalogID + "/" + templateID + "/" + versionID
 		newTemplate.TemplateBase = parentMetadata.TemplateBase
@@ -264,39 +263,11 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 		newTemplate.CatalogID = cat.CatalogID
 		newTemplate.Files = make(map[string]string)
 
+		foundIcon, foundReadme, err := walkVersion(CatalogRootDir+path, &newTemplate)
+
 		if err != nil {
 			log.Errorf("Error reading template at path: %s, error: %v", path, err)
 			return nil, false
-		}
-
-		var foundIcon, foundReadme bool
-
-		for _, subfile := range dirList {
-			if strings.HasPrefix(subfile.Name(), "catalogIcon") {
-
-				newTemplate.IconLink = newTemplate.Id + "?image"
-				foundIcon = true
-				PathToImage[newTemplate.Path] = subfile.Name()
-
-			} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
-
-				newTemplate.ReadmeLink = newTemplate.Id + "?readme"
-				foundReadme = true
-				PathToReadme[newTemplate.Path] = subfile.Name()
-
-			} else {
-				//read if its a file and put it in the files map
-				if !subfile.IsDir() {
-					bytes, err := readFile(CatalogRootDir+path, subfile.Name())
-					if err != nil {
-						continue
-					}
-					newTemplate.Files[subfile.Name()] = string(*bytes)
-					if strings.HasPrefix(subfile.Name(), "rancher-compose") {
-						readRancherCompose(CatalogRootDir+path, &newTemplate)
-					}
-				}
-			}
 		}
 
 		if !foundIcon {
@@ -314,4 +285,70 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 
 	return nil, false
 
+}
+
+func walkVersion(path string, template *model.Template) (bool, bool, error) {
+	dirList, err := ioutil.ReadDir(path)
+
+	if err != nil {
+		log.Errorf("Error reading template at path: %s, error: %v", path, err)
+		return false, false, err
+	}
+
+	var foundIcon, foundReadme bool
+
+	for _, subfile := range dirList {
+		if strings.HasPrefix(subfile.Name(), "catalogIcon") {
+			template.IconLink = template.Id + "?image"
+			foundIcon = true
+			PathToImage[template.Path] = subfile.Name()
+
+		} else if strings.HasPrefix(strings.ToLower(subfile.Name()), "readme") {
+			template.ReadmeLink = template.Id + "?readme"
+			foundReadme = true
+			PathToReadme[template.Path] = subfile.Name()
+
+		} else {
+			//read if its a file and put it in the files map
+			if !subfile.IsDir() {
+				bytes, err := readFile(path, subfile.Name())
+				if err != nil {
+					continue
+				}
+				key := deriveFilePath(template.Path, path) + subfile.Name()
+
+				template.Files[key] = string(*bytes)
+				if strings.HasPrefix(subfile.Name(), "rancher-compose") {
+					readRancherCompose(path, template)
+				}
+			} else {
+				//grab files under this folder
+				walkVersion(path+"/"+subfile.Name(), template)
+			}
+		}
+	}
+
+	return foundIcon, foundReadme, nil
+}
+
+func deriveFilePath(templatePath string, path string) string {
+	//template.Path = prachi/ElasticSearch/0
+	//path = ./DATA/prachi/templates/ElasticSearch/0  return ""
+	//path = ./DATA/prachi/templates/ElasticSearch/0/redis return redis
+	//path = ./DATA/prachi/templates/ElasticSearch/0/redis/front  return redis/front
+
+	lastIndexOfSlash := strings.LastIndex(templatePath, "/")
+	if lastIndexOfSlash != -1 {
+		version := templatePath[lastIndexOfSlash+1 : len(templatePath)]
+		lastVersionIndex := strings.LastIndex(path, version)
+		if lastVersionIndex != -1 {
+			if lastVersionIndex != len(path)-1 {
+				return path[lastVersionIndex+2:] + "/"
+			} else {
+				return ""
+			}
+		}
+	}
+
+	return path + "/"
 }
