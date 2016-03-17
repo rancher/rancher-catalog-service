@@ -353,7 +353,7 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string
 
 	copyOfversionLinks := make(map[string]string)
 	for key, value := range template.VersionLinks {
-		copyOfversionLinks[key] = apiContext.UrlBuilder.ReferenceByIdLink("template", URLEncoded(value))
+		copyOfversionLinks[key] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", value))
 	}
 
 	template.Links["icon"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", template.IconLink))
