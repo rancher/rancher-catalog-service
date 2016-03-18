@@ -44,6 +44,47 @@ func (cat *Catalog) getID() string {
 	return cat.CatalogID
 }
 
+func (cat *Catalog) readCatalog() error {
+	_, err := os.Stat(CatalogRootDir + cat.CatalogID)
+	if !os.IsNotExist(err) || err == nil {
+		//catalog exists, check if url matches
+		e := exec.Command("git", "-C", cat.catalogRoot, "config", "--get", "remote.origin.url")
+		out, err := e.Output()
+		if err != nil {
+			log.Errorf("Cannot verify Git repo for Catalog %v, error: %v ", cat.CatalogID, err)
+			return err
+		}
+		repoURL := string(out)
+		repoURL = strings.TrimSpace(repoURL)
+		if repoURL == cat.URL {
+			log.Debugf("Catalog %v already exists with same repo url, pulling updates", cat.CatalogID)
+			err := cat.pullCatalog()
+			if err != nil {
+				log.Errorf("Git pull for Catalog %v failing with error: %v ", cat.CatalogID, err)
+			}
+			cat.metadata = make(map[string]model.Template)
+			//walk the catalog and read the metadata to the cache
+			filepath.Walk(cat.catalogRoot, cat.walkCatalog)
+			if ValidationMode {
+				log.Infof("Catalog loaded without errors")
+				os.Exit(0)
+			}
+		} else {
+			//remove the existing repo
+			err := os.RemoveAll(CatalogRootDir + cat.CatalogID)
+			if err != nil {
+				log.Errorf("Cannot remove the existing catalog folder %v, error: %v", cat.CatalogID, err)
+				return err
+			}
+			return cat.cloneCatalog()
+		}
+	} else {
+		log.Debugf("Catalog %v does not exist, proceeding to clone the repo : ", cat.CatalogID)
+		return cat.cloneCatalog()
+	}
+	return nil
+}
+
 func (cat *Catalog) cloneCatalog() error {
 	log.Infof("Cloning the catalog from git URL %s", cat.URL)
 	//git clone the repo
@@ -342,11 +383,11 @@ func deriveFilePath(templatePath string, path string) string {
 		version := templatePath[lastIndexOfSlash+1 : len(templatePath)]
 		lastVersionIndex := strings.LastIndex(path, version)
 		if lastVersionIndex != -1 {
+			var key string
 			if lastVersionIndex != len(path)-1 {
-				return path[lastVersionIndex+2:] + "/"
-			} else {
-				return ""
+				key = path[lastVersionIndex+2:] + "/"
 			}
+			return key
 		}
 	}
 
