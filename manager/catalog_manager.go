@@ -121,20 +121,8 @@ func SetEnv() {
 
 //Init clones or pulls the catalog, starts background refresh thread
 func Init() {
-	_, err := os.Stat(CatalogRootDir)
-	if !os.IsNotExist(err) || err == nil {
-		//remove the existing repo
-		err := os.RemoveAll(CatalogRootDir)
-		if err != nil {
-			log.Fatal("Cannot remove the existing catalog data folder ./DATA/", err)
-			_ = fmt.Errorf("Cannot remove the existing catalog data folder ./DATA/, error: " + err.Error())
-		}
-	} else {
-		log.Info("./DATA/ folder does not exist, proceeding to clone the repo : ", err)
-	}
-
 	for _, catalog := range CatalogsCollection {
-		catalog.cloneCatalog()
+		catalog.readCatalog()
 	}
 
 	//start a background timer to pull from the Catalog periodically
