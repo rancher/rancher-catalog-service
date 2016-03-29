@@ -10,7 +10,15 @@ fi
 # Create broken git repo.
 ./scripts/test-warm
 
-./bin/rancher-catalog-service -catalogUrl https://github.com/rancher/rancher-catalog.git -port 8088 &
+
+
+if [ "$CATALOG_URL" = "" ]
+then
+   CATALOG_URL="rancher=https://github.com/rancher/rancher-catalog.git,qa-catalog=https://github.com/rancher/qa-catalog"
+fi
+
+
+./bin/rancher-catalog-service -catalogUrl ${CATALOG_URL} -port 8088 &
 trap "kill $!" exit
 cd integration
 tox -e flake8,py27

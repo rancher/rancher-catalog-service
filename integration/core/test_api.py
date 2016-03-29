@@ -82,3 +82,18 @@ def test_template_base(client):
     assert len(templates) > 0
     for i in range(len(templates)):
         assert templates[i].templateBase is not None
+
+
+def test_template_many_versions(client):
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].id == unicode('qa-catalog:many-versions'):
+                versionUrls = templates[i].versionLinks.values()
+                for i in range(len(versionUrls)):
+                    version_response = requests.get(versionUrls[i])
+                    assert version_response is not 404
+                    response_json = version_response.json()
+                    docker_compose = response_json.get(unicode('files'))\
+                        .get(unicode('docker-compose.yml'))
+                    assert docker_compose is not None
