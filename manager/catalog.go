@@ -375,20 +375,18 @@ func walkVersion(path string, template *model.Template) (bool, bool, error) {
 func deriveFilePath(templatePath string, path string) string {
 	//template.Path = prachi/ElasticSearch/0
 	//path = ./DATA/prachi/templates/ElasticSearch/0  return ""
-	//path = ./DATA/prachi/templates/ElasticSearch/0/redis return redis
-	//path = ./DATA/prachi/templates/ElasticSearch/0/redis/front  return redis/front
+	//path = ./DATA/prachi/templates/ElasticSearch/0/redis return redis/
+	//path = ./DATA/prachi/templates/ElasticSearch/0/redis/front  return redis/front/
 
 	lastIndexOfSlash := strings.LastIndex(templatePath, "/")
 	if lastIndexOfSlash != -1 {
 		version := templatePath[lastIndexOfSlash+1 : len(templatePath)]
-		lastVersionIndex := strings.LastIndex(path, version)
-		if lastVersionIndex != -1 {
-			var key string
-			if lastVersionIndex != len(path)-1 {
-				key = path[lastVersionIndex+2:] + "/"
-			}
-			return key
+		parts := strings.SplitAfter(path, "/"+version+"/")
+		var key string
+		if len(parts) > 1 {
+			key = parts[1] + "/"
 		}
+		return key
 	}
 
 	return path + "/"
