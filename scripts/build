@@ -5,4 +5,4 @@ set -e
 
 mkdir -p $(dirname $BIN)
 echo Building $BIN
-godep go build -o $BIN $MAIN
+go build -o $BIN $MAIN
