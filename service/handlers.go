@@ -366,7 +366,6 @@ func PopulateTemplateLinks(r *http.Request, template *model.Template) map[string
 	template.Links["self"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("template", template.Id))
 
 	template.VersionLinks = copyOfversionLinks
-	template.DefaultVersion = template.Version
 
 	return copyOfversionLinks
 }

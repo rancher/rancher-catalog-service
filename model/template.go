@@ -8,6 +8,7 @@ type Template struct {
 	CatalogID                     string            `json:"catalogId"`
 	Name                          string            `json:"name"`
 	Category                      string            `json:"category"`
+	IsSystem                      string            `json:"isSystem"`
 	Description                   string            `json:"description"`
 	Version                       string            `json:"version"`
 	DefaultVersion                string            `json:"defaultVersion"`
