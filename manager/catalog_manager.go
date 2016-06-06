@@ -86,7 +86,7 @@ func SetEnv() {
 		defaultFound := false
 
 		for _, value := range catalogURL {
-			log.Debug("url %s", value)
+			log.Debugf("url %s", value)
 			value = strings.TrimSpace(value)
 			if value != "" {
 				urls := strings.Split(value, ",")
@@ -103,12 +103,18 @@ func SetEnv() {
 					}
 					newCatalog := Catalog{}
 					newCatalog.CatalogID = tokens[0]
-					newCatalog.URL = tokens[1]
+					url := tokens[1]
+					index := strings.Index(tokens[1], "://")
+					if index != -1 {
+						//lowercase the scheme
+						url = strings.ToLower(tokens[1][:index]) + tokens[1][index:]
+					}
+					newCatalog.URL = url
 					refChan := make(chan int, 1)
 					newCatalog.refreshReqChannel = &refChan
 					newCatalog.catalogRoot = CatalogRootDir + tokens[0]
 					CatalogsCollection[tokens[0]] = &newCatalog
-					log.Infof("Using catalog %s=%s", tokens[0], tokens[1])
+					log.Infof("Using catalog %s=%s", tokens[0], url)
 				}
 			}
 		}
