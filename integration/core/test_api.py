@@ -97,3 +97,10 @@ def test_template_many_versions(client):
                     docker_compose = response_json.get(unicode('files'))\
                         .get(unicode('docker-compose.yml'))
                     assert docker_compose is not None
+
+
+def test_template_is_system_flag(client):
+    templates = client.list_template()
+    assert len(templates) > 0
+    for i in range(len(templates)):
+        assert templates[i].isSystem is not None

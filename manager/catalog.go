@@ -233,6 +233,8 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 			template.Maintainer = config["maintainer"]
 			template.License = config["license"]
 			template.ProjectURL = config["projectURL"]
+			template.IsSystem = config["isSystem"]
+			template.DefaultVersion = config["version"]
 		}
 	}
 }
@@ -302,6 +304,9 @@ func (cat *Catalog) ReadTemplateVersion(templateID string, versionID string) (*m
 		newTemplate.TemplateBase = parentMetadata.TemplateBase
 		newTemplate.Id = cat.CatalogID + ":" + templateID + ":" + versionID
 		newTemplate.CatalogID = cat.CatalogID
+		newTemplate.DefaultVersion = parentMetadata.DefaultVersion
+		newTemplate.Category = parentMetadata.Category
+		newTemplate.IsSystem = parentMetadata.IsSystem
 		newTemplate.Files = make(map[string]string)
 
 		foundIcon, foundReadme, err := walkVersion(CatalogRootDir+path, &newTemplate)
