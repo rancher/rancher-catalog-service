@@ -93,11 +93,11 @@ func (cat *Catalog) cloneCatalog() error {
 
 	if cat.URLBranch == "master" {
 		log.Infof("Cloning the catalog from git URL %s", cat.URL)
-		e = exec.Command("git", "clone", cat.URL, cat.catalogRoot)
+		e = exec.Command("git", "clone", "--recursive", cat.URL, cat.catalogRoot)
 	} else {
 		log.Infof("Branch : %s", cat.URLBranch)
 		log.Infof("Cloning the catalog from git URL branch %s to directory %s", cat.URLBranch, cat.catalogRoot)
-		e = exec.Command("git", "clone", "-b", cat.URLBranch, cat.URL, cat.catalogRoot)
+		e = exec.Command("git", "clone", "--recursive", "-b", cat.URLBranch, cat.URL, cat.catalogRoot)
 	}
 
 	e.Stdout = os.Stdout
@@ -205,6 +205,16 @@ func (cat *Catalog) pullCatalog() error {
 	err := e.Run()
 	if err != nil {
 		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.URL, err.Error())
+		return err
+	}
+
+	log.Debugf("Update submodules of the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
+
+	e = exec.Command("git", "-C", cat.catalogRoot, "submodule", "update", "--init", "--recursive")
+
+	err = e.Run()
+	if err != nil {
+		log.Errorf("Failed to update submodules of the catalog from git repo %s, error: %v", cat.URL, err.Error())
 		return err
 	}
 	cat.LastUpdated = time.Now().Format(time.RFC3339)
