@@ -60,3 +60,10 @@ def test_validate_exists_error(catalog_service):
         1, '-catalogUrl',
         '/tmp/broken-catalog',
         '-validate', '-port', '18088')
+
+
+def test_validate_https_caps_exits_normal(catalog_service):
+    catalog_service.assert_retcode(
+        0, '-catalogUrl',
+        'Https://github.com/rancher/rancher-catalog.git',
+        '-validate', '-port', '18088')
