@@ -223,7 +223,7 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	templateIDString := vars["catalog_template_version_Id"]
-	log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
+	log.Debugf("LoadTemplateDetails for template Id: %s", templateIDString)
 	pathTokens := strings.Split(templateIDString, ":")
 
 	var catalogID, templateID, versionID string
@@ -262,8 +262,20 @@ func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWr
 	path := catalogID + "/" + templateID
 	tempID := catalogID + ":" + templateID
 	log.Debugf("Request to load metadata for template: %s", path)
+	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
+	if rancherVersion != "" {
+		log.Debugf("only versions with minimumRancherVersion <= %s", rancherVersion)
+	}
 	templateMetadata, ok := manager.GetTemplateMetadata(catalogID, templateID)
 	if ok {
+		if rancherVersion != "" {
+			var err error
+			templateMetadata.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &templateMetadata)
+			if err != nil {
+				log.Debugf("Cannot apply the minimumRancherVersion_lte filter for template: %s", path)
+				ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot apply the minimumRancherVersion_lte filter for template: %s", tempID))
+			}
+		}
 		PopulateTemplateLinks(r, &templateMetadata)
 		api.GetApiContext(r).Write(&templateMetadata)
 	} else {
@@ -277,7 +289,7 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	//read the template version from disk
 	tempVersionID := catalogID + ":" + templateID + ":" + versionID
 	path := catalogID + "/" + templateID + "/" + versionID
-	log.Debugf("Request to load details for template version: %s", path)
+	log.Debugf("Request to load  template version: %s", path)
 
 	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
 	if ok {
