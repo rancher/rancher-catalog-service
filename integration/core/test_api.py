@@ -104,3 +104,13 @@ def test_template_is_system_flag(client):
     assert len(templates) > 0
     for i in range(len(templates)):
         assert templates[i].isSystem is not None
+
+
+def test_template_minimum_rancher_version_filter(client):
+    templates = client.list_template(catalogId='qa-catalog',
+                                     minimumRancherVersion_lte='v0.46.0')
+    assert len(templates) > 0
+
+    temp = client.list_template(catalogId='qa-catalog',
+                                minimumRancherVersion_lte='v0.46.0-dev5-rc1')
+    assert len(temp) > 0
