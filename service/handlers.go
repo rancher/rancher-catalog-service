@@ -17,6 +17,10 @@ import (
 
 const headerForwardedProto string = "X-Forwarded-Proto"
 
+var (
+	re = regexp.MustCompile(`v([a-zA-Z0-9.]+)`)
+)
+
 //ListCatalogs is a handler for route /catalogs and returns a collection of catalog metadata
 func ListCatalogs(w http.ResponseWriter, r *http.Request) {
 	apiContext := api.GetApiContext(r)
@@ -188,10 +192,8 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 func filterByMinimumRancherVersion(rancherVersion string, template *model.Template) (map[string]string, error) {
 	copyOfversionLinks := make(map[string]string)
-	re := regexp.MustCompile(`v([a-zA-Z0-9.]+)`)
-	rancherVersion = re.ReplaceAllString(rancherVersion, "$1")
 
-	vB, err := semver.NewVersion(rancherVersion)
+	vB, err := getSemVersion(rancherVersion)
 	if err != nil {
 		log.Errorf("Error loading the passed filter minimumRancherVersion_lte with semver %s", err.Error())
 		return copyOfversionLinks, err
@@ -199,8 +201,7 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 
 	for templateVersion, minRancherVersion := range template.TemplateVersionRancherVersion {
 		if minRancherVersion != "" {
-			minRancherVersion = re.ReplaceAllString(minRancherVersion, "$1")
-			vA, err := semver.NewVersion(minRancherVersion)
+			vA, err := getSemVersion(minRancherVersion)
 			if err != nil {
 				log.Errorf("Error loading version with semver %s", err.Error())
 				continue
@@ -208,7 +209,9 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 
 			if minRancherVersion == rancherVersion || vA.LessThan(*vB) {
 				//this template version passes the filter
-				copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+				if template.VersionLinks[templateVersion] != "" {
+					copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+				}
 			}
 		} else {
 			//no min rancher version specified, so this template works with any rancher version
@@ -217,6 +220,36 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 	}
 
 	return copyOfversionLinks, nil
+}
+
+func getSemVersion(versionStr string) (*semver.Version, error) {
+	versionStr = re.ReplaceAllString(versionStr, "$1")
+
+	semVersion, err := semver.NewVersion(versionStr)
+	if err != nil {
+		log.Errorf("Error %v loading semver for version string %s", err.Error(), versionStr)
+		return nil, err
+	}
+	return semVersion, nil
+}
+
+func isMinRancherVersionLTE(templateMinRancherVersion string, rancherVersion string) (bool, error) {
+	vA, err := getSemVersion(templateMinRancherVersion)
+	if err != nil {
+		log.Errorf("Error loading template minRancherVersion %s with semver %s", templateMinRancherVersion, err.Error())
+		return false, err
+	}
+
+	vB, err := getSemVersion(rancherVersion)
+	if err != nil {
+		log.Errorf("Error loading the passed filter minimumRancherVersion_lte %s with semver %s", rancherVersion, err.Error())
+		return false, err
+	}
+
+	if templateMinRancherVersion == rancherVersion || vA.LessThan(*vB) {
+		return true, nil
+	}
+	return false, nil
 }
 
 //LoadTemplateDetails returns details of the template
@@ -290,9 +323,31 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	tempVersionID := catalogID + ":" + templateID + ":" + versionID
 	path := catalogID + "/" + templateID + "/" + versionID
 	log.Debugf("Request to load  template version: %s", path)
+	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
+	if rancherVersion != "" {
+		log.Debugf("and if minimumRancherVersion <= %s", rancherVersion)
+	}
 
 	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
 	if ok {
+		if rancherVersion != "" {
+			if template.MinimumRancherVersion != "" {
+				//check that this template can be returned for this rancherVersion
+				isLTE, err := isMinRancherVersionLTE(template.MinimumRancherVersion, rancherVersion)
+
+				if err != nil {
+					log.Errorf("Error applying filter minimumRancherVersion_lte with semver %s", err.Error())
+					api.GetApiContext(r).Write(&model.Template{})
+					return
+				}
+
+				if !isLTE {
+					log.Debugf("Cannot return this template since minimumRancherVersion is not <= %s", rancherVersion)
+					api.GetApiContext(r).Write(&model.Template{})
+					return
+				}
+			}
+		}
 		template.Type = "templateVersion"
 		template.VersionLinks = PopulateTemplateLinks(r, template)
 		upgradeInfo := GetUpgradeInfo(r, template.Path)
@@ -338,10 +393,22 @@ func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 //GetUpgradeInfo returns if any new versions are available for the given template uuid
 func GetUpgradeInfo(r *http.Request, path string) model.UpgradeInfo {
 	var upgradeInfo model.UpgradeInfo
-	log.Debugf("Request to get new template versions for path %s", path)
+	log.Debugf("Request to get new template versions available for upgrade, for path %s", path)
+	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
+	if rancherVersion != "" {
+		log.Debugf("and with minimumRancherVersion <= %s", rancherVersion)
+	}
 
 	templateMetadata, ok := manager.GetNewTemplateVersions(path)
 	if ok {
+		if rancherVersion != "" {
+			var err error
+			templateMetadata.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &templateMetadata)
+			if err != nil {
+				log.Debugf("Cannot provide upgradeInfo as cannot apply the minimumRancherVersion_lte filter for template: %s", path)
+				return upgradeInfo
+			}
+		}
 		log.Debugf("Template returned by path: %v", templateMetadata.VersionLinks)
 		log.Debugf("Found Template: %s", templateMetadata.Name)
 		upgradeInfo.CurrentVersion = templateMetadata.Version

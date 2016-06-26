@@ -94,7 +94,7 @@ def test_template_many_versions(client):
                     version_response = requests.get(versionUrls[i])
                     assert version_response is not 404
                     response_json = version_response.json()
-                    docker_compose = response_json.get(unicode('files'))\
+                    docker_compose = response_json.get(unicode('files')) \
                         .get(unicode('docker-compose.yml'))
                     assert docker_compose is not None
 
@@ -114,3 +114,28 @@ def test_template_minimum_rancher_version_filter(client):
     temp = client.list_template(catalogId='qa-catalog',
                                 minimumRancherVersion_lte='v0.46.0-dev5-rc1')
     assert len(temp) > 0
+
+    # test to check the minimumRancherVersion_lte is applied to upgradeInfo
+    # as well
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].id == unicode('qa-catalog:many-versions'):
+                versionUrlsMap = templates[i].versionLinks
+                if len(versionUrlsMap) > 0:
+                    url_to_try = versionUrlsMap.get(unicode('1.0.0'))
+                    version_response = requests.get(url_to_try)
+                    assert version_response is not 404
+                    response_json = version_response.json()
+                    upgradeUrls = response_json.\
+                        get(unicode('upgradeVersionLinks'))
+                    assert upgradeUrls is not None
+                    min_version_response = requests.\
+                        get(url_to_try +
+                            "?minimumRancherVersion_lte=v0.46.0")
+                    assert version_response is not 404
+                    min_response_json = min_version_response.json()
+                    minUpgradeUrls = min_response_json.\
+                        get(unicode('upgradeVersionLinks'))
+                    assert minUpgradeUrls is not None
+                    assert len(upgradeUrls) > len(minUpgradeUrls)
