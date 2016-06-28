@@ -1,5 +1,4 @@
-FROM golang:1.5
-RUN go get github.com/tools/godep
+FROM golang:1.6
 RUN go get github.com/golang/lint/golint
 ENV DAPPER_SOURCE /go/src/github.com/rancher/rancher-catalog-service
 ENV DAPPER_OUTPUT bin dist

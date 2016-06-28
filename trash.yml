@@ -1,0 +1,27 @@
+package: github.com/rancher/rancher-catalog-service
+
+import:
+- package: github.com/Sirupsen/logrus
+  version: 26709e2714106fb8ad40b773b711ebce25b78914
+
+- package: github.com/coreos/go-semver/semver
+  version: d043ae190b3202550d026daf009359bb5d761672
+
+- package: github.com/gorilla/context
+  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
+
+- package: github.com/gorilla/mux
+  version: f15e0c49460fd49eebe2bcc8486b05d1bef68d3a
+
+- package: github.com/gorilla/websocket
+  version: 1551221275a7bd42978745a376b2531f791d88f3
+
+- package: github.com/rancher/go-rancher/api
+  version: 575db0bb6771627c6475476662d36ec2a888cdf5
+
+- package: github.com/rancher/go-rancher/client
+  version: 575db0bb6771627c6475476662d36ec2a888cdf5
+
+- package: gopkg.in/yaml.v2
+  version: 49c95bdc21843256fb6c4e0d370a05f24a0bf213
+
