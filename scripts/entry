@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
-mkdir -p bin dist
+trap "chown -R $DAPPER_UID:$DAPPER_GID ." exit
 
+mkdir -p bin
 if [ -e ./scripts/$1 ]; then
     exec ./scripts/"$@"
+else
+    exec "$@"
 fi
-
-exec "$@"

@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-exec ./scripts/all
+exec ./scripts/ci

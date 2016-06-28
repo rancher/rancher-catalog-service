@@ -7,3 +7,4 @@
 /integration/MANIFEST
 *.swp
 *.pyc
+.dapper
