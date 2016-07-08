@@ -38,6 +38,8 @@ type Catalog struct {
 	catalogRoot       string
 	refreshReqChannel *chan int
 	metadata          map[string]model.Template
+	URLBranch         string `json:"branch"`
+	catalogBranchDir  string
 }
 
 func (cat *Catalog) getID() string {
@@ -86,9 +88,22 @@ func (cat *Catalog) readCatalog() error {
 }
 
 func (cat *Catalog) cloneCatalog() error {
-	log.Infof("Cloning the catalog from git URL %s", cat.URL)
+	var e *exec.Cmd
 	//git clone the repo
-	e := exec.Command("git", "clone", cat.URL, cat.catalogRoot)
+	// git clone -b mybranch --single-branch git://sub.domain.com/repo.git
+
+	if cat.URLBranch != "master" {
+		log.Infof("Branch : %s", cat.URLBranch)
+		log.Infof("Cloning the catalog from git URL branch %s to directory %s", cat.URLBranch, cat.catalogBranchDir)
+		e = exec.Command("git", "clone", "-b", cat.URLBranch, cat.URL, cat.catalogBranchDir)
+		_ = e
+	} else {
+		log.Infof("Cloning the catalog from git URL %s", cat.URL)
+		e = exec.Command("git", "clone", cat.URL, cat.catalogRoot)
+		_ = e
+	}
+
+	// e := exec.Command("git","clone", "-b", cat.URLBranch, cat.URL, cat.catalogBranchDir)
 	e.Stdout = os.Stdout
 	e.Stderr = os.Stderr
 	err := e.Run()
@@ -178,7 +193,24 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 func (cat *Catalog) pullCatalog() error {
 	log.Debugf("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
 
-	e := exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
+	// git --git-dir=./DATA/value/.git/ --work-tree=./DATA/value/ checkout new_branch
+	gitCheckoutCmd := exec.Command("git", "--git-dir="+cat.catalogRoot+"/.git", "--work-tree="+cat.catalogRoot, "checkout", cat.URLBranch)
+
+	out, gitCheckoutErr := gitCheckoutCmd.Output()
+	if gitCheckoutErr != nil {
+		errorStr := "Git checkout failure from git err: " + gitCheckoutErr.Error()
+		log.Error(errorStr)
+	}
+	log.Debugf("Branch to be worked on : %s\n", out)
+
+	var e *exec.Cmd
+	if cat.URLBranch != "master" {
+		e = exec.Command("git", "-C", cat.catalogBranchDir, "pull", "-r", "origin", cat.URLBranch)
+		_ = e
+	} else {
+		e = exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
+		_ = e
+	}
 
 	err := e.Run()
 	if err != nil {

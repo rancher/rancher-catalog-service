@@ -14,7 +14,7 @@ fi
 
 if [ "$CATALOG_URL" = "" ]
 then
-   CATALOG_URL="rancher=https://github.com/rancher/rancher-catalog.git,qa-catalog=https://github.com/rancher/qa-catalog"
+   CATALOG_URL="rancher=https://github.com/rancher/rancher-catalog.git"
 fi
 
 

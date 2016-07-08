@@ -14,7 +14,9 @@ func main() {
 	router := service.NewRouter()
 	handler := service.MuxWrapper{false, router}
 
-	manager.SetEnv()
+	manager.GetCommandLine()
+
 	go manager.Init()
+	manager.WatchSignals()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *manager.Port), &handler))
 }

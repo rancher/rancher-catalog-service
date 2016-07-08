@@ -1,0 +1,7 @@
+[
+	{
+		"name":"qa-catalog",
+		"repoURL":"https://github.com/rancher/qa-catalog",
+		"branch":"master"
+	}
+]

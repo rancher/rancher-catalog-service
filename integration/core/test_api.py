@@ -21,6 +21,7 @@ def test_catalog_state_uri_present(client):
     for i in range(len(catalogs)):
         assert catalogs[i].state is not None
         assert catalogs[i].uri is not None
+        assert catalogs[i].branch is not None
 
 
 def test_template_list(client):
