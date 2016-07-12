@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-godep go test ./...
+go test ./...
 
 if [ ! -e ./bin/rancher-catalog-service ]; then
     ./scripts/build
