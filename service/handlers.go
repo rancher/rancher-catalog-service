@@ -385,6 +385,11 @@ func loadFile(catalogID string, templateID string, versionID string, fileNameMap
 //RefreshCatalog will be doing a force catalog refresh
 func RefreshCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Request to refresh catalog")
+
+	//Reload catalog
+	manager.SetEnv()
+	manager.Init()
+
 	manager.RefreshAllCatalogs()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)

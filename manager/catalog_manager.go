@@ -1,12 +1,15 @@
 package manager
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	//"io/ioutil"
+	"io/ioutil"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -15,6 +18,13 @@ import (
 )
 
 type arrayFlags []string
+
+//CatalogInput stores catalogs accepted from JSON file
+type CatalogInput struct {
+	Name    string
+	RepoURL string
+	Branch  string
+}
 
 func (i *arrayFlags) String() string {
 	return fmt.Sprint(*i)
@@ -30,6 +40,7 @@ var (
 	logFile         = flag.String("logFile", "", "Log file")
 	debug           = flag.Bool("debug", false, "Debug")
 	validate        = flag.Bool("validate", false, "Validate catalog yaml and exit")
+	configFile      = flag.String("configFile", "", "Config file")
 
 	// Port is the listen port of the HTTP server
 	Port              = flag.Int("port", 8088, "HTTP listen port")
@@ -47,16 +58,85 @@ var (
 	//ValidationMode is used to determine if code is just checking Yaml syntax
 	ValidationMode bool
 
-	catalogURL arrayFlags
+	catalogURL     arrayFlags
+	commandLineURL arrayFlags
+
+	catalogURLBranch string
+
+	//URLBranchMap aps repo url to branch
+	URLBranchMap map[string]string
+
+	reloadChan = make(chan chan error)
 )
 
 //CatalogRootDir is the root folder under which all catalogs are cloned
 const CatalogRootDir string = "./DATA/"
 
+//WatchSignals handles SIGHUP
+func WatchSignals() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	go func() {
+		for _ = range c {
+			log.Info("Received HUP signal")
+			SetEnv()
+			go Init()
+		}
+	}()
+}
+
+//GetCommandLine parses the command line args
+func GetCommandLine() {
+	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id=repo_url. Specify the flag multiple times for multiple repos")
+
+	flag.Parse()
+	commandLineURL = catalogURL
+	SetEnv()
+}
+
 //SetEnv parses the command line args and sets the necessary variables
 func SetEnv() {
-	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id=repo_url. Specify the flag multiple times for multiple repos")
-	flag.Parse()
+
+	catalogURL = catalogURL[:0]
+	catalogURL = commandLineURL
+
+	var catalogObject []CatalogInput
+	var catalogObjectJSON []CatalogInput
+	URLBranchMap = make(map[string]string)
+
+	//NEW CODE
+	// If catalog provided through command line
+	if len(catalogURL) > 0 {
+		for i := 0; i < len(catalogURL); i++ {
+			obj := CatalogInput{}
+			obj.RepoURL = catalogURL[i]
+			obj.Branch = "master"
+			catalogObject = append(catalogObject, obj)
+			URLBranchMap[obj.RepoURL] = obj.Branch
+		}
+	}
+
+	if *configFile != "" {
+		libraryContent, err := ioutil.ReadFile(*configFile)
+		if err != nil {
+			log.Debugf("JSON file does not exist, continuing for command line URLs")
+		} else {
+			err = json.Unmarshal(libraryContent, &catalogObjectJSON)
+			if err != nil {
+				log.Errorf("JSON data format invalid, error : %v\n", err)
+			}
+
+			for _, value := range catalogObjectJSON {
+				if (CatalogInput{} != value) {
+					catalogObject = append(catalogObject, value)
+					value.RepoURL = value.Name + "=" + value.RepoURL
+					catalogURL = append(catalogURL, value.RepoURL)
+					URLBranchMap[value.RepoURL] = value.Branch
+				}
+			}
+		}
+	}
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)
@@ -78,15 +158,16 @@ func SetEnv() {
 		FullTimestamp: true,
 	}
 	log.SetFormatter(textFormatter)
-
 	if catalogURL != nil {
 		CatalogsCollection = make(map[string]*Catalog)
 		PathToImage = make(map[string]string)
 		PathToReadme = make(map[string]string)
+
 		defaultFound := false
 
 		for _, value := range catalogURL {
-			log.Debugf("url %s", value)
+			catalogURLBranch = URLBranchMap[value]
+
 			value = strings.TrimSpace(value)
 			if value != "" {
 				urls := strings.Split(value, ",")
@@ -109,6 +190,9 @@ func SetEnv() {
 						//lowercase the scheme
 						url = strings.ToLower(tokens[1][:index]) + tokens[1][index:]
 					}
+					if catalogURLBranch != "" {
+						newCatalog.URLBranch = catalogURLBranch
+					}
 					newCatalog.URL = url
 					refChan := make(chan int, 1)
 					newCatalog.refreshReqChannel = &refChan
@@ -116,6 +200,7 @@ func SetEnv() {
 					CatalogsCollection[tokens[0]] = &newCatalog
 					log.Infof("Using catalog %s=%s", tokens[0], url)
 				}
+				// Init()
 			}
 		}
 	} else {
@@ -168,6 +253,7 @@ func ListAllCatalogs() []Catalog {
 		catalog.CatalogLink = catalogID + "/templates"
 		catalog.State = cat.State
 		catalog.URL = cat.URL
+		catalog.URLBranch = cat.URLBranch
 		catalog.Message = cat.Message
 		catalog.LastUpdated = cat.LastUpdated
 		catalogCollection = append(catalogCollection, catalog)
@@ -188,6 +274,7 @@ func GetCatalog(catalogID string) (Catalog, bool) {
 		catalog.CatalogID = cat.CatalogID
 		catalog.State = cat.State
 		catalog.URL = cat.URL
+		catalog.URLBranch = cat.URLBranch
 		catalog.Message = cat.Message
 		catalog.LastUpdated = cat.LastUpdated
 		catalog.CatalogLink = cat.CatalogID + "/templates"

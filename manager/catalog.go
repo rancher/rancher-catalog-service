@@ -38,6 +38,7 @@ type Catalog struct {
 	catalogRoot       string
 	refreshReqChannel *chan int
 	metadata          map[string]model.Template
+	URLBranch         string `json:"branch"`
 }
 
 func (cat *Catalog) getID() string {
@@ -86,9 +87,19 @@ func (cat *Catalog) readCatalog() error {
 }
 
 func (cat *Catalog) cloneCatalog() error {
-	log.Infof("Cloning the catalog from git URL %s", cat.URL)
+	var e *exec.Cmd
 	//git clone the repo
-	e := exec.Command("git", "clone", cat.URL, cat.catalogRoot)
+	// git clone -b mybranch --single-branch git://sub.domain.com/repo.git
+
+	if cat.URLBranch == "master" {
+		log.Infof("Cloning the catalog from git URL %s", cat.URL)
+		e = exec.Command("git", "clone", cat.URL, cat.catalogRoot)
+	} else {
+		log.Infof("Branch : %s", cat.URLBranch)
+		log.Infof("Cloning the catalog from git URL branch %s to directory %s", cat.URLBranch, cat.catalogRoot)
+		e = exec.Command("git", "clone", "-b", cat.URLBranch, cat.URL, cat.catalogRoot)
+	}
+
 	e.Stdout = os.Stdout
 	e.Stderr = os.Stderr
 	err := e.Run()
@@ -106,7 +117,7 @@ func (cat *Catalog) cloneCatalog() error {
 		log.Infof("Catalog loaded without errors")
 		os.Exit(0)
 	}
-	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.LastUpdated = time.Now().Format(time.RFC3339)
 	cat.State = "active"
 	return nil
 }
@@ -178,14 +189,25 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 func (cat *Catalog) pullCatalog() error {
 	log.Debugf("Pulling the catalog %s from the repo to sync any new changes to %s", cat.CatalogID, cat.catalogRoot)
 
-	e := exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
+	// git --git-dir=./DATA/value/.git/ --work-tree=./DATA/value/ checkout new_branch
+	gitCheckoutCmd := exec.Command("git", "--git-dir="+cat.catalogRoot+"/.git", "--work-tree="+cat.catalogRoot, "checkout", cat.URLBranch)
+
+	out, gitCheckoutErr := gitCheckoutCmd.Output()
+	if gitCheckoutErr != nil {
+		errorStr := "Git checkout failure from git err: " + gitCheckoutErr.Error()
+		log.Error(errorStr)
+	}
+	log.Debugf("Branch to be worked on : %s\n", out)
+
+	var e *exec.Cmd
+	e = exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", cat.URLBranch)
 
 	err := e.Run()
 	if err != nil {
 		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.URL, err.Error())
 		return err
 	}
-	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.LastUpdated = time.Now().Format(time.RFC3339)
 	cat.State = "active"
 	return nil
 }
