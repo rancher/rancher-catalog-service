@@ -1,7 +1,7 @@
 [
 	{
-		"name":"qa-catalog",
-		"repoURL":"https://github.com/rancher/qa-catalog",
-		"branch":"master"
+		"name":"library",
+		"repoURL":"https://github.com/mrajashree/my-rancher-catalog",
+		"branch":"new_branch"
 	}
 ]

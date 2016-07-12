@@ -36,11 +36,11 @@ func (i *arrayFlags) Set(value string) error {
 }
 
 var (
-	refreshInterval  = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
-	logFile          = flag.String("logFile", "", "Log file")
-	debug            = flag.Bool("debug", false, "Debug")
-	validate         = flag.Bool("validate", false, "Validate catalog yaml and exit")
-	catalogURLBranch = flag.String("catalogURLBranch", "", "Branch name")
+	refreshInterval = flag.Int64("refreshInterval", 60, "Time interval (in Seconds) to periodically pull the catalog from git repo")
+	logFile         = flag.String("logFile", "", "Log file")
+	debug           = flag.Bool("debug", false, "Debug")
+	validate        = flag.Bool("validate", false, "Validate catalog yaml and exit")
+	configFile      = flag.String("configFile", "", "Config file")
 
 	// Port is the listen port of the HTTP server
 	Port              = flag.Int("port", 8088, "HTTP listen port")
@@ -60,6 +60,8 @@ var (
 
 	catalogURL     arrayFlags
 	commandLineURL arrayFlags
+
+	catalogURLBranch string
 
 	//URLBranchMap aps repo url to branch
 	URLBranchMap map[string]string
@@ -101,45 +103,38 @@ func SetEnv() {
 
 	var catalogObject []CatalogInput
 	var catalogObjectJSON []CatalogInput
-	var catalogObjectNonEmptyJSON []CatalogInput
-	var catalogObjectCommandLine []CatalogInput
 	URLBranchMap = make(map[string]string)
 
 	//NEW CODE
 	// If catalog provided through command line
 	if len(catalogURL) > 0 {
 		for i := 0; i < len(catalogURL); i++ {
-			catalogObj := CatalogInput{}
-			catalogObj.RepoURL = catalogURL[i]
-			catalogObj.Branch = "master"
-			catalogObjectCommandLine = append(catalogObjectCommandLine, catalogObj)
-			URLBranchMap[catalogObj.RepoURL] = catalogObj.Branch
+			obj := CatalogInput{}
+			obj.RepoURL = catalogURL[i]
+			obj.Branch = "master"
+			catalogObject = append(catalogObject, obj)
+			URLBranchMap[obj.RepoURL] = obj.Branch
 		}
-		catalogObject = append(catalogObject, catalogObjectCommandLine...)
 	}
 
-	libraryContent, err := ioutil.ReadFile("./repo.json")
-	if err != nil {
-		log.Debugf("JSON file does not exist, continuing for command line URLs")
-	} else {
-		err = json.Unmarshal(libraryContent, &catalogObjectJSON)
+	if *configFile != "" {
+		libraryContent, err := ioutil.ReadFile(*configFile)
 		if err != nil {
-			log.Errorf("JSON data format invalid, error : %v\n", err)
-		}
-
-		for objIndex := 0; objIndex < len(catalogObjectJSON); objIndex++ {
-			if (CatalogInput{} != catalogObjectJSON[objIndex]) {
-				catalogObjectNonEmptyJSON = append(catalogObjectNonEmptyJSON, catalogObjectJSON[objIndex])
+			log.Debugf("JSON file does not exist, continuing for command line URLs")
+		} else {
+			err = json.Unmarshal(libraryContent, &catalogObjectJSON)
+			if err != nil {
+				log.Errorf("JSON data format invalid, error : %v\n", err)
 			}
-		}
 
-		catalogObjectJSON = catalogObjectNonEmptyJSON
-		catalogObject = append(catalogObject, catalogObjectJSON...)
-
-		for libraryIndex := 0; libraryIndex < len(catalogObjectJSON); libraryIndex++ {
-			catalogObjectJSON[libraryIndex].RepoURL = catalogObjectJSON[libraryIndex].Name + "=" + catalogObjectJSON[libraryIndex].RepoURL
-			catalogURL = append(catalogURL, catalogObjectJSON[libraryIndex].RepoURL)
-			URLBranchMap[catalogObjectJSON[libraryIndex].RepoURL] = catalogObjectJSON[libraryIndex].Branch
+			for _, value := range catalogObjectJSON {
+				if (CatalogInput{} != value) {
+					catalogObject = append(catalogObject, value)
+					value.RepoURL = value.Name + "=" + value.RepoURL
+					catalogURL = append(catalogURL, value.RepoURL)
+					URLBranchMap[value.RepoURL] = value.Branch
+				}
+			}
 		}
 	}
 
@@ -171,7 +166,7 @@ func SetEnv() {
 		defaultFound := false
 
 		for _, value := range catalogURL {
-			*catalogURLBranch = URLBranchMap[value]
+			catalogURLBranch = URLBranchMap[value]
 
 			value = strings.TrimSpace(value)
 			if value != "" {
@@ -195,9 +190,8 @@ func SetEnv() {
 						//lowercase the scheme
 						url = strings.ToLower(tokens[1][:index]) + tokens[1][index:]
 					}
-					if *catalogURLBranch != "" {
-						newCatalog.URLBranch = *catalogURLBranch
-						newCatalog.catalogBranchDir = CatalogRootDir + tokens[0] //+ "/" + *catalogURLBranch
+					if catalogURLBranch != "" {
+						newCatalog.URLBranch = catalogURLBranch
 					}
 					newCatalog.URL = url
 					refChan := make(chan int, 1)

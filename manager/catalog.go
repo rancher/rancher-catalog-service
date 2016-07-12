@@ -39,7 +39,6 @@ type Catalog struct {
 	refreshReqChannel *chan int
 	metadata          map[string]model.Template
 	URLBranch         string `json:"branch"`
-	catalogBranchDir  string
 }
 
 func (cat *Catalog) getID() string {
@@ -92,18 +91,15 @@ func (cat *Catalog) cloneCatalog() error {
 	//git clone the repo
 	// git clone -b mybranch --single-branch git://sub.domain.com/repo.git
 
-	if cat.URLBranch != "master" {
-		log.Infof("Branch : %s", cat.URLBranch)
-		log.Infof("Cloning the catalog from git URL branch %s to directory %s", cat.URLBranch, cat.catalogBranchDir)
-		e = exec.Command("git", "clone", "-b", cat.URLBranch, cat.URL, cat.catalogBranchDir)
-		_ = e
-	} else {
+	if cat.URLBranch == "master" {
 		log.Infof("Cloning the catalog from git URL %s", cat.URL)
 		e = exec.Command("git", "clone", cat.URL, cat.catalogRoot)
-		_ = e
+	} else {
+		log.Infof("Branch : %s", cat.URLBranch)
+		log.Infof("Cloning the catalog from git URL branch %s to directory %s", cat.URLBranch, cat.catalogRoot)
+		e = exec.Command("git", "clone", "-b", cat.URLBranch, cat.URL, cat.catalogRoot)
 	}
 
-	// e := exec.Command("git","clone", "-b", cat.URLBranch, cat.URL, cat.catalogBranchDir)
 	e.Stdout = os.Stdout
 	e.Stderr = os.Stderr
 	err := e.Run()
@@ -121,7 +117,7 @@ func (cat *Catalog) cloneCatalog() error {
 		log.Infof("Catalog loaded without errors")
 		os.Exit(0)
 	}
-	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.LastUpdated = time.Now().Format(time.RFC3339)
 	cat.State = "active"
 	return nil
 }
@@ -204,20 +200,14 @@ func (cat *Catalog) pullCatalog() error {
 	log.Debugf("Branch to be worked on : %s\n", out)
 
 	var e *exec.Cmd
-	if cat.URLBranch != "master" {
-		e = exec.Command("git", "-C", cat.catalogBranchDir, "pull", "-r", "origin", cat.URLBranch)
-		_ = e
-	} else {
-		e = exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", "master")
-		_ = e
-	}
+	e = exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", cat.URLBranch)
 
 	err := e.Run()
 	if err != nil {
 		log.Errorf("Failed to pull the catalog from git repo %s, error: %v", cat.URL, err.Error())
 		return err
 	}
-	cat.LastUpdated = time.Now().Format(time.RFC850)
+	cat.LastUpdated = time.Now().Format(time.RFC3339)
 	cat.State = "active"
 	return nil
 }
