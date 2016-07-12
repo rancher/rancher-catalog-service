@@ -3,7 +3,7 @@ set -e
 
 fmt()
 {
-    local files=$(gofmt -l . 2>&1 | grep -v 'Godeps')
+    local files=$(gofmt -l . 2>&1 | grep -v 'vendor')
 
     if [ -n "$files" ]; then
         echo Failed gofmt
@@ -25,14 +25,14 @@ lint()
 
 lint_files()
 {
-    for i in $(find -type d | grep -vE '(Godep|.git)'); do
+    for i in $(find -type d | grep -vE '(vendor|.git)'); do
         golint $i
     done
 }
 
 vet()
 {
-    for i in $(find -type d | grep -vE '(Godep|.git|bin|dist|DATA|scripts|integration)'); do
+    for i in $(find -type d | grep -vE '(vendor|.git|bin|dist|DATA|scripts|integration)'); do
         go vet $i
     done
 }
