@@ -110,6 +110,9 @@ func (cat *Catalog) cloneCatalog() error {
 		cat.Message = errorStr
 		return err
 	}
+
+	log.Info("Cloning completed")
+
 	cat.metadata = make(map[string]model.Template)
 	//walk the catalog and read the metadata to the cache
 	filepath.Walk(cat.catalogRoot, cat.walkCatalog)
