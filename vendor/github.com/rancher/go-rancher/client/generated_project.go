@@ -7,6 +7,8 @@ const (
 type Project struct {
 	Resource
 
+	AllowSystemRole bool `json:"allowSystemRole,omitempty" yaml:"allow_system_role,omitempty"`
+
 	Created string `json:"created,omitempty" yaml:"created,omitempty"`
 
 	Data map[string]interface{} `json:"data,omitempty" yaml:"data,omitempty"`
@@ -19,11 +21,17 @@ type Project struct {
 
 	Members []interface{} `json:"members,omitempty" yaml:"members,omitempty"`
 
+	Mesos bool `json:"mesos,omitempty" yaml:"mesos,omitempty"`
+
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+
+	PublicDns bool `json:"publicDns,omitempty" yaml:"public_dns,omitempty"`
 
 	RemoveTime string `json:"removeTime,omitempty" yaml:"remove_time,omitempty"`
 
 	Removed string `json:"removed,omitempty" yaml:"removed,omitempty"`
+
+	ServicesPortRange *ServicesPortRange `json:"servicesPortRange,omitempty" yaml:"services_port_range,omitempty"`
 
 	State string `json:"state,omitempty" yaml:"state,omitempty"`
 
@@ -36,6 +44,8 @@ type Project struct {
 	TransitioningProgress int64 `json:"transitioningProgress,omitempty" yaml:"transitioning_progress,omitempty"`
 
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
+
+	VirtualMachine bool `json:"virtualMachine,omitempty" yaml:"virtual_machine,omitempty"`
 }
 
 type ProjectCollection struct {
