@@ -20,12 +20,13 @@ type Template struct {
 	Path                          string            `json:"path"`
 	MinimumRancherVersion         string            `json:"minimumRancherVersion"`
 	TemplateVersionRancherVersion map[string]string
-	Maintainer                    string `json:"maintainer"`
-	License                       string `json:"license"`
-	ProjectURL                    string `json:"projectURL"`
-	ReadmeLink                    string `json:"readmeLink"`
-	Output                        Output `json:"output" yaml:"output,omitempty"`
-	TemplateBase                  string `json:"templateBase"`
+	Maintainer                    string                 `json:"maintainer"`
+	License                       string                 `json:"license"`
+	ProjectURL                    string                 `json:"projectURL"`
+	ReadmeLink                    string                 `json:"readmeLink"`
+	Output                        Output                 `json:"output" yaml:"output,omitempty"`
+	TemplateBase                  string                 `json:"templateBase"`
+	Bindings                      map[string]interface{} `json:"bindings"`
 }
 
 //TemplateCollection holds a collection of templates

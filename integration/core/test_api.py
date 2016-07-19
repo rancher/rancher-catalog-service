@@ -78,6 +78,26 @@ def test_template_files_map(client):
     assert resp['files']['rancher-compose.yml'] is not None
 
 
+def test_template_bindings_property(client):
+    templates = client.list_template()
+    assert len(templates) > 0
+    for i in range(len(templates)):
+        versionUrls = templates[i].versionLinks.values()
+        for i in range(len(versionUrls)):
+            response = requests.get(versionUrls[i])
+            assert response.status_code == 200
+            resp = response.json()
+            assert resp['bindings'] is not None
+            for i in range(len(resp['bindings'])):
+                service = resp['bindings'].items()[i]
+                keys = resp['bindings'][service[0]].keys()
+                for key in keys:
+                    service_map = resp['bindings'][service[0]][key]
+                    assert service_map['labels'] is not None
+                    assert service_map['ports'] is not None
+                    assert service_map['scale'] is not None
+
+
 def test_template_base(client):
     templates = client.list_template()
     assert len(templates) > 0
