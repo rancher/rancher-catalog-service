@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/go-rancher/api"
 	"github.com/rancher/rancher-catalog-service/manager"
 	"github.com/rancher/rancher-catalog-service/model"
+	"reflect"
 )
 
 const headerForwardedProto string = "X-Forwarded-Proto"
@@ -412,6 +413,12 @@ func GetUpgradeInfo(r *http.Request, path string) model.UpgradeInfo {
 			if err != nil {
 				log.Debugf("Cannot provide upgradeInfo as cannot apply the minimumRancherVersion_lte filter for template: %s", path)
 				return upgradeInfo
+			}
+		}
+		versions := reflect.ValueOf(templateMetadata.VersionLinks).MapKeys()
+		for _, version := range versions {
+			if templateMetadata.VersionLinks[version.String()] == "" {
+				delete(templateMetadata.VersionLinks, version.String())
 			}
 		}
 		log.Debugf("Template returned by path: %v", templateMetadata.VersionLinks)
