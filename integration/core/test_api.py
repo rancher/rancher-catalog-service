@@ -140,3 +140,21 @@ def test_template_minimum_rancher_version_filter(client):
                         get(unicode('upgradeVersionLinks'))
                     assert minUpgradeUrls is not None
                     assert len(upgradeUrls) > len(minUpgradeUrls)
+
+
+def test_template_upgrade_version_links(client):
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            versionUrlsMap = templates[i].versionLinks
+            if len(versionUrlsMap) > 0:
+                for key in versionUrlsMap.keys():
+                    url_to_try = versionUrlsMap[key]
+                version_response = requests.get(url_to_try)
+                assert version_response is not 404
+                response_json = version_response.json()
+                upgradeUrls = response_json. \
+                    get(unicode('upgradeVersionLinks'))
+                for key in upgradeUrls.keys():
+                    print upgradeUrls[key]
+                    assert upgradeUrls[key] is not None

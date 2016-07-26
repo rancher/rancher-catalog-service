@@ -215,7 +215,9 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 			}
 		} else {
 			//no min rancher version specified, so this template works with any rancher version
-			copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+			if template.VersionLinks[templateVersion] != "" {
+				copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+			}
 		}
 	}
 
