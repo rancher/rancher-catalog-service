@@ -42,8 +42,7 @@ func CreateBindingsRancher(pathToYml string) BindingProperty {
 	rancherFile := pathToYml + "/rancher-compose.yml"
 
 	dockerFile := pathToYml + "/docker-compose.yml"
-	fileExists, err := os.Stat(dockerFile)
-	_ = fileExists
+	_, err := os.Stat(dockerFile)
 	if err == nil {
 		yamlContent, err := ioutil.ReadFile(dockerFile)
 		if err != nil {
@@ -55,7 +54,6 @@ func CreateBindingsRancher(pathToYml string) BindingProperty {
 			} else {
 				rawConfigDocker, err := preprocess.PreprocessServiceMap(rawConfigDocker)
 				utils.Convert(rawConfigDocker, &configMap)
-				_ = rawConfigDocker
 				if err != nil {
 					log.Errorf("Error")
 				}
@@ -100,9 +98,8 @@ func CreateBindingsRancher(pathToYml string) BindingProperty {
 
 			keys = reflect.ValueOf(configMap).MapKeys()
 			for _, key := range keys {
-				if val, serviceParsed := bindingsMap[key.String()]; serviceParsed {
+				if _, serviceParsed := bindingsMap[key.String()]; serviceParsed {
 					log.Debugf("Service bindings already provided")
-					_ = val
 					continue
 				}
 				if key.String() != ".catalog" {
