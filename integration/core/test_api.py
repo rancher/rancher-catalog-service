@@ -175,6 +175,28 @@ def test_template_upgrade_version_links(client):
                 response_json = version_response.json()
                 upgradeUrls = response_json. \
                     get(unicode('upgradeVersionLinks'))
-                for key in upgradeUrls.keys():
-                    print upgradeUrls[key]
-                    assert upgradeUrls[key] is not None
+                if upgradeUrls is not None:
+                    for key in upgradeUrls.keys():
+                        assert upgradeUrls[key] is not None
+
+
+def test_template_upgrade_version_links_compare_versions(client):
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'Out of Order Versions':
+                versionUrlsMap = templates[i].versionLinks
+        if len(versionUrlsMap) > 0:
+            versionsArray = ["1.0.0","1.0.1","1.0.2","1.0.3","1.0.11","1.1.0","1.1.1","1.2.0","1.2.1","2.0.0-alpha1","2.0.0-alpha2","2.0.0-beta1","2.0.0"]
+            for key in versionUrlsMap.keys():
+                versionIndex = versionsArray.index(key)
+                url_to_try = versionUrlsMap[key]
+                version_response = requests.get(url_to_try)
+                assert version_response is not 404
+                response_json = version_response.json()
+                upgradeUrls = response_json. \
+                    get(unicode('upgradeVersionLinks'))
+                assert sorted(versionsArray[versionIndex+1:]) == sorted(upgradeUrls.keys())
+                assert len(upgradeUrls) == len(versionsArray) - versionIndex - 1
+
+                
