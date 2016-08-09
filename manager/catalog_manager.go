@@ -7,14 +7,15 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/coreos/go-semver/semver"
 	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
+	"gopkg.in/yaml.v2"
 )
 
 type arrayFlags []string
@@ -335,36 +336,91 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	cVersion := tokens[2]
 
 	//refresh the catalog and sync any new changes
+
 	cat := CatalogsCollection[catalogID]
-	//cat.refreshCatalog()
+	cat.refreshCatalog()
 
-	currentVersion, err := strconv.Atoi(cVersion)
+	rancherComposePathCurrent := CatalogRootDir + catalogID + "/templates/" + parentPath + "/" + cVersion
 
+	currentVersion, err := getVersionFromRancherCompose(rancherComposePathCurrent)
 	if err != nil {
-		log.Debugf("Error %v reading Current Version from path: %s", err, path)
-	} else {
-		templateMetadata, ok := cat.metadata[catalogID+"/"+parentPath]
-		if ok {
-			log.Debugf("Template found by path: %s", path)
-			copyOfversionLinks := make(map[string]string)
-			for key, value := range templateMetadata.VersionLinks {
-				if value != path {
-					otherVersionTokens := strings.Split(value, ":")
-					oVersion := otherVersionTokens[2]
-					otherVersion, err := strconv.Atoi(oVersion)
+		log.Errorf("Error %v getting semVersion ", err)
+		return templateMetadata, false
+	}
 
-					if err == nil && otherVersion > currentVersion {
-						copyOfversionLinks[key] = value
-					}
-				} else {
-					templateMetadata.Version = key
+	templateMetadata, ok := cat.metadata[catalogID+"/"+parentPath]
+	if ok {
+		log.Debugf("Template found by path: %s", path)
+		copyOfversionLinks := make(map[string]string)
+
+		for key, value := range templateMetadata.VersionLinks {
+			if value != path {
+				otherVersionTokens := strings.Split(value, ":")
+				oVersion := otherVersionTokens[2]
+
+				rancherComposePathOther := CatalogRootDir + catalogID + "/templates/" + parentPath + "/" + oVersion
+				otherVersion, err := getVersionFromRancherCompose(rancherComposePathOther)
+				if err != nil {
+					log.Debugf("Error %v getting semVersion ", err)
+					continue
 				}
+
+				if err == nil && currentVersion.LessThan(*otherVersion) {
+					copyOfversionLinks[key] = value
+				}
+			} else {
+				templateMetadata.Version = key
 			}
-			templateMetadata.VersionLinks = copyOfversionLinks
-			return templateMetadata, true
 		}
+		templateMetadata.VersionLinks = copyOfversionLinks
+		return templateMetadata, true
 	}
 
 	log.Debugf("Template metadata not found by path: %s", path)
 	return templateMetadata, false
+}
+
+func getVersionFromRancherCompose(rancherComposePath string) (*semver.Version, error) {
+	rancherCompose := make(map[string]model.RancherCompose)
+
+	composeBytes, err := readFile(rancherComposePath, "rancher-compose.yml")
+	if err != nil {
+		return nil, err
+	}
+
+	err = yaml.Unmarshal(*composeBytes, &rancherCompose)
+	if err != nil {
+		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", rancherComposePath, err)
+		return nil, err
+	}
+	version := rancherCompose[".catalog"].Version
+	if strings.Count(version, ".") == 1 {
+		preReleaseIndex := strings.Index(version, "-")
+		if preReleaseIndex != -1 {
+			version = version[:preReleaseIndex] + ".0" + version[preReleaseIndex:]
+		} else {
+			version = version + ".0"
+		}
+	}
+
+	if strings.Count(version, ".") == 0 {
+		preReleaseIndex := strings.Index(version, "-")
+		if preReleaseIndex != -1 {
+			version = version[:preReleaseIndex] + ".0.0" + version[preReleaseIndex:]
+		} else {
+			version = version + ".0.0"
+		}
+	}
+
+	///getSemVersion part
+	if strings.Index(version, "v") == 0 {
+		version = version[1:]
+	}
+
+	semVersion, err := semver.NewVersion(version)
+	if err != nil {
+		log.Errorf("Error %v loading semver for version string %s", err.Error(), version)
+		return nil, err
+	}
+	return semVersion, nil
 }
