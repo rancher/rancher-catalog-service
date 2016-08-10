@@ -187,7 +187,10 @@ def test_template_upgrade_version_links_compare_versions(client):
             if templates[i].name == 'Out of Order Versions':
                 versionUrlsMap = templates[i].versionLinks
         if len(versionUrlsMap) > 0:
-            versionsArray = ["1.0.0","1.0.1","1.0.2","1.0.3","1.0.11","1.1.0","1.1.1","1.2.0","1.2.1","2.0.0-alpha1","2.0.0-alpha2","2.0.0-beta1","2.0.0"]
+            versionsArray = ["1.0.0", "1.0.1", "1.0.2", "1.0.3",
+                             "1.0.11", "1.1.0", "1.1.1", "1.2.0", "1.2.1",
+                             "2.0.0-alpha1", "2.0.0-alpha2", "2.0.0-beta1",
+                             "2.0.0"]
             for key in versionUrlsMap.keys():
                 versionIndex = versionsArray.index(key)
                 url_to_try = versionUrlsMap[key]
@@ -196,7 +199,7 @@ def test_template_upgrade_version_links_compare_versions(client):
                 response_json = version_response.json()
                 upgradeUrls = response_json. \
                     get(unicode('upgradeVersionLinks'))
-                assert sorted(versionsArray[versionIndex+1:]) == sorted(upgradeUrls.keys())
-                assert len(upgradeUrls) == len(versionsArray) - versionIndex - 1
-
-                
+                assert sorted(versionsArray[versionIndex+1:]) \
+                    == sorted(upgradeUrls.keys())
+                assert len(upgradeUrls) == len(versionsArray) \
+                    - versionIndex - 1
