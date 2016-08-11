@@ -20,6 +20,11 @@ import (
 
 type arrayFlags []string
 
+//ConfigFileFields stores catalogs
+type ConfigFileFields struct {
+	Catalogs []CatalogInput
+}
+
 //CatalogInput stores catalogs accepted from JSON file
 type CatalogInput struct {
 	Name    string
@@ -103,8 +108,8 @@ func SetEnv() {
 	catalogURL = commandLineURL
 
 	var catalogObject []CatalogInput
-	var catalogObjectJSON []CatalogInput
-	URLBranchMap = make(map[string]string)
+	var URLBranchMap = make(map[string]string)
+	var configFields = ConfigFileFields{}
 
 	//NEW CODE
 	// If catalog provided through command line
@@ -123,12 +128,12 @@ func SetEnv() {
 		if err != nil {
 			log.Debugf("JSON file does not exist, continuing for command line URLs")
 		} else {
-			err = json.Unmarshal(libraryContent, &catalogObjectJSON)
+			err = json.Unmarshal(libraryContent, &configFields)
 			if err != nil {
 				log.Errorf("JSON data format invalid, error : %v\n", err)
 			}
 
-			for _, value := range catalogObjectJSON {
+			for _, value := range configFields.Catalogs {
 				if (CatalogInput{} != value) {
 					catalogObject = append(catalogObject, value)
 					value.RepoURL = value.Name + "=" + value.RepoURL
