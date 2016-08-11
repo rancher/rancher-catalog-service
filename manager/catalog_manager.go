@@ -20,16 +20,15 @@ import (
 
 type arrayFlags []string
 
-//ConfigFileFields stores catalogs
-type ConfigFileFields struct {
-	Catalogs []CatalogInput
-}
-
 //CatalogInput stores catalogs accepted from JSON file
 type CatalogInput struct {
-	Name    string
-	RepoURL string
-	Branch  string
+	URL    string `json:"url"`
+	Branch string `json:"branch"`
+}
+
+//ConfigFileFields stores catalogs
+type ConfigFileFields struct {
+	Catalogs map[string]CatalogInput
 }
 
 func (i *arrayFlags) String() string {
@@ -107,7 +106,6 @@ func SetEnv() {
 	catalogURL = catalogURL[:0]
 	catalogURL = commandLineURL
 
-	var catalogObject []CatalogInput
 	var URLBranchMap = make(map[string]string)
 	var configFields = ConfigFileFields{}
 
@@ -116,10 +114,9 @@ func SetEnv() {
 	if len(catalogURL) > 0 {
 		for i := 0; i < len(catalogURL); i++ {
 			obj := CatalogInput{}
-			obj.RepoURL = catalogURL[i]
+			obj.URL = catalogURL[i]
 			obj.Branch = "master"
-			catalogObject = append(catalogObject, obj)
-			URLBranchMap[obj.RepoURL] = obj.Branch
+			URLBranchMap[obj.URL] = obj.Branch
 		}
 	}
 
@@ -133,12 +130,14 @@ func SetEnv() {
 				log.Errorf("JSON data format invalid, error : %v\n", err)
 			}
 
-			for _, value := range configFields.Catalogs {
+			for key, value := range configFields.Catalogs {
 				if (CatalogInput{} != value) {
-					catalogObject = append(catalogObject, value)
-					value.RepoURL = value.Name + "=" + value.RepoURL
-					catalogURL = append(catalogURL, value.RepoURL)
-					URLBranchMap[value.RepoURL] = value.Branch
+					if value.Branch == "" {
+						value.Branch = "master"
+					}
+					value.URL = key + "=" + value.URL
+					catalogURL = append(catalogURL, value.URL)
+					URLBranchMap[value.URL] = value.Branch
 				}
 			}
 		}
