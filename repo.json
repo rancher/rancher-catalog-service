@@ -1,14 +1,11 @@
-{
-	"catalogs":[
-		{
-			"name":"qa-catalog",
-			"repoURL":"https://github.com/rancher/qa-catalog",
-			"branch":"master"
-		},
-		{
-			"name":"rancher-catalog",
-			"repoURL":"https://github.com/rancher/rancher-catalog",
-			"branch":"master"
-		}
-	]
+ {
+  "catalogs": {
+    "library": {
+      "url": "https://github.com/rancher/rancher-catalog.git",
+      "branch":"master"
+    },
+    "community": {
+      "url": "https://github.com/rancher/community-catalog.git"
+    }
+  }
 }
