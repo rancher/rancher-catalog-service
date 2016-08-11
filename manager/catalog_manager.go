@@ -345,7 +345,8 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	cat := CatalogsCollection[catalogID]
 	cat.refreshCatalog()
 
-	rancherComposePathCurrent := CatalogRootDir + catalogID + "/templates/" + parentPath + "/" + cVersion
+	templateName, templateID := ExtractTemplatePrefixAndName(parentPath)
+	rancherComposePathCurrent := CatalogRootDir + catalogID + "/" + templateName + "/" + templateID + "/" + cVersion
 
 	currentVersion, err := getVersionFromRancherCompose(rancherComposePathCurrent)
 	if err != nil {
@@ -363,7 +364,9 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 				otherVersionTokens := strings.Split(value, ":")
 				oVersion := otherVersionTokens[2]
 
-				rancherComposePathOther := CatalogRootDir + catalogID + "/templates/" + parentPath + "/" + oVersion
+				templateName, templateID := ExtractTemplatePrefixAndName(parentPath)
+				rancherComposePathOther := CatalogRootDir + catalogID + "/" + templateName + "/" + templateID + "/" + oVersion
+
 				otherVersion, err := getVersionFromRancherCompose(rancherComposePathOther)
 				if err != nil {
 					log.Debugf("Error %v getting semVersion ", err)
