@@ -294,7 +294,7 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	newTemplate.Version = RC[".catalog"].Version
 	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
 	newTemplate.Output = RC[".catalog"].Output
-
+	newTemplate.Labels = RC[".catalog"].Labels
 	return nil
 }
 
