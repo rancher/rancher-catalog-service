@@ -398,6 +398,7 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 }
 
 func getVersionFromRancherCompose(templateMetaData *model.Template) (*semver.Version, error) {
+	var processedVersion string
 	version := templateMetaData.Version
 	if strings.Count(version, ".") == 1 {
 		preReleaseIndex := strings.Index(version, "-")
@@ -415,6 +416,18 @@ func getVersionFromRancherCompose(templateMetaData *model.Template) (*semver.Ver
 		} else {
 			version = version + ".0.0"
 		}
+	}
+
+	if strings.Count(version, ".") >= 3 {
+		versionNumbers := strings.Split(version, ".") //keep only 3 parts
+		preReleaseIndex := strings.Index(version, "-")
+		if preReleaseIndex != -1 {
+			processedVersion = versionNumbers[0] + "." + versionNumbers[1] + "." + versionNumbers[2]
+			processedVersion = processedVersion + version[preReleaseIndex:]
+		} else {
+			processedVersion = versionNumbers[0] + "." + versionNumbers[1] + "." + versionNumbers[2]
+		}
+		version = processedVersion
 	}
 
 	if strings.Index(version, "v") == 0 {
