@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/coreos/go-semver/semver"
+	"github.com/blang/semver"
 	"github.com/gorilla/mux"
 	"github.com/rancher/go-rancher/api"
 	"github.com/rancher/rancher-catalog-service/manager"
@@ -207,7 +207,7 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 				continue
 			}
 
-			if minRancherVersion == rancherVersion || vA.LessThan(*vB) {
+			if minRancherVersion == rancherVersion || vA.LT(*vB) {
 				//this template version passes the filter
 				if template.VersionLinks[templateVersion] != "" {
 					copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
@@ -227,12 +227,12 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 func getSemVersion(versionStr string) (*semver.Version, error) {
 	versionStr = re.ReplaceAllString(versionStr, "$1")
 
-	semVersion, err := semver.NewVersion(versionStr)
+	semVersion, err := semver.Make(versionStr)
 	if err != nil {
 		log.Errorf("Error %v loading semver for version string %s", err.Error(), versionStr)
 		return nil, err
 	}
-	return semVersion, nil
+	return &semVersion, nil
 }
 
 func isMinRancherVersionLTE(templateMinRancherVersion string, rancherVersion string) (bool, error) {
@@ -248,7 +248,7 @@ func isMinRancherVersionLTE(templateMinRancherVersion string, rancherVersion str
 		return false, err
 	}
 
-	if templateMinRancherVersion == rancherVersion || vA.LessThan(*vB) {
+	if templateMinRancherVersion == rancherVersion || vA.LT(*vB) {
 		return true, nil
 	}
 	return false, nil
