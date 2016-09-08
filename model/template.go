@@ -27,6 +27,7 @@ type Template struct {
 	Output                        Output            `json:"output" yaml:"output,omitempty"`
 	TemplateBase                  string            `json:"templateBase"`
 	Labels                        map[string]string `json:"labels"`
+	UpgradeFrom                   string            `json:"upgradeFrom"`
 }
 
 //TemplateCollection holds a collection of templates

@@ -12,10 +12,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/coreos/go-semver/semver"
+	"github.com/blang/semver"
 	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
-	"gopkg.in/yaml.v2"
 )
 
 type arrayFlags []string
@@ -347,7 +346,8 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	templateName, templateID := ExtractTemplatePrefixAndName(parentPath)
 	rancherComposePathCurrent := CatalogRootDir + catalogID + "/" + templateName + "/" + templateID + "/" + cVersion
 
-	currentVersion, err := getVersionFromRancherCompose(rancherComposePathCurrent)
+	readRancherCompose(rancherComposePathCurrent, &templateMetadata)
+	currentVersion, err := getVersionFromRancherCompose(&templateMetadata)
 	if err != nil {
 		log.Errorf("Error %v getting semVersion ", err)
 		return templateMetadata, false
@@ -356,7 +356,7 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	templateMetadata, ok := cat.metadata[catalogID+"/"+parentPath]
 	if ok {
 		log.Debugf("Template found by path: %s", path)
-		copyOfversionLinks := make(map[string]string)
+		copyOfVersionLinks := make(map[string]string)
 
 		for key, value := range templateMetadata.VersionLinks {
 			if value != path {
@@ -366,20 +366,30 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 				templateName, templateID := ExtractTemplatePrefixAndName(parentPath)
 				rancherComposePathOther := CatalogRootDir + catalogID + "/" + templateName + "/" + templateID + "/" + oVersion
 
-				otherVersion, err := getVersionFromRancherCompose(rancherComposePathOther)
+				templateOtherMetaData := model.Template{}
+				readRancherCompose(rancherComposePathOther, &templateOtherMetaData)
+				otherVersion, err := getVersionFromRancherCompose(&templateOtherMetaData)
 				if err != nil {
-					log.Debugf("Error %v getting semVersion ", err)
+					log.Errorf("Error %v getting semVersion ", err)
 					continue
 				}
 
-				if err == nil && currentVersion.LessThan(*otherVersion) {
-					copyOfversionLinks[key] = value
+				upgradeRange, err := getUpgradeFrom(&templateOtherMetaData)
+				if err != nil {
+					log.Errorf("Error %v getting semRange ", err)
+					continue
+				}
+
+				if err == nil && currentVersion.LT(*otherVersion) {
+					if upgradeRange == nil || upgradeRange(*currentVersion) {
+						copyOfVersionLinks[key] = value
+					}
 				}
 			} else {
 				templateMetadata.Version = key
 			}
 		}
-		templateMetadata.VersionLinks = copyOfversionLinks
+		templateMetadata.VersionLinks = copyOfVersionLinks
 		return templateMetadata, true
 	}
 
@@ -387,20 +397,8 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	return templateMetadata, false
 }
 
-func getVersionFromRancherCompose(rancherComposePath string) (*semver.Version, error) {
-	rancherCompose := make(map[string]model.RancherCompose)
-
-	composeBytes, err := readFile(rancherComposePath, "rancher-compose.yml")
-	if err != nil {
-		return nil, err
-	}
-
-	err = yaml.Unmarshal(*composeBytes, &rancherCompose)
-	if err != nil {
-		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", rancherComposePath, err)
-		return nil, err
-	}
-	version := rancherCompose[".catalog"].Version
+func getVersionFromRancherCompose(templateMetaData *model.Template) (*semver.Version, error) {
+	version := templateMetaData.Version
 	if strings.Count(version, ".") == 1 {
 		preReleaseIndex := strings.Index(version, "-")
 		if preReleaseIndex != -1 {
@@ -419,15 +417,26 @@ func getVersionFromRancherCompose(rancherComposePath string) (*semver.Version, e
 		}
 	}
 
-	///getSemVersion part
 	if strings.Index(version, "v") == 0 {
 		version = version[1:]
 	}
-
-	semVersion, err := semver.NewVersion(version)
+	semVersion, err := semver.Make(version)
 	if err != nil {
 		log.Errorf("Error %v loading semver for version string %s", err.Error(), version)
 		return nil, err
 	}
-	return semVersion, nil
+	return &semVersion, nil
+}
+
+func getUpgradeFrom(templateMetaData *model.Template) (semver.Range, error) {
+	upgradeFrom := templateMetaData.UpgradeFrom
+	if upgradeFrom == "" {
+		return nil, nil
+	}
+	upgradeRange, err := semver.ParseRange(upgradeFrom)
+	if err != nil {
+		log.Errorf("Error in parsing range : %v\n", upgradeRange)
+		return nil, err
+	}
+	return upgradeRange, nil
 }
