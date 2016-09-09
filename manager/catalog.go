@@ -295,6 +295,11 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
 	newTemplate.Output = RC[".catalog"].Output
 	newTemplate.Labels = RC[".catalog"].Labels
+	binding, err := model.CreateBindingsRancher(relativePath)
+	if err != nil {
+		return err
+	}
+	newTemplate.Bindings = binding
 	return nil
 }
 

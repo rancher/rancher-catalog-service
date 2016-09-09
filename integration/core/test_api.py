@@ -160,6 +160,25 @@ def test_template_upgrade_version_links(client):
                         assert upgradeUrls[key] is not None
 
 
+def test_template_bindings_property(client):
+    templates = client.list_template()
+    assert len(templates) > 0
+    for i in range(len(templates)):
+        versionUrls = templates[i].versionLinks.values()
+        for i in range(len(versionUrls)):
+            response = requests.get(versionUrls[i])
+            assert response.status_code == 200
+            resp = response.json()
+            assert resp['bindings'] is not None
+            for i in range(len(resp['bindings'])):
+                services = resp['bindings']['services']
+                for service in services:
+                    service_map = resp['bindings']['services'][service]
+                    assert service_map['labels'] is not None
+                    assert service_map['ports'] is not None
+                    assert service_map['scale'] is not None
+
+
 def test_template_upgrade_version_links_compare_versions(client):
     templates = client.list_template(catalogId='qa-catalog')
     if len(templates) > 0:
