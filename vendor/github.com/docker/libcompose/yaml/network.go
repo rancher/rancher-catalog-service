@@ -1,7 +1,6 @@
 package yaml
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -21,20 +20,20 @@ type Network struct {
 }
 
 // MarshalYAML implements the Marshaller interface.
-func (n Networks) MarshalYAML() (interface{}, error) {
+func (n Networks) MarshalYAML() (tag string, value interface{}, err error) {
 	m := map[string]*Network{}
 	for _, network := range n.Networks {
 		m[network.Name] = network
 	}
-	return m, nil
+	return "", m, nil
 }
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (n *Networks) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var sliceType []interface{}
-	if err := unmarshal(&sliceType); err == nil {
+func (n *Networks) UnmarshalYAML(tag string, value interface{}) error {
+	switch v := value.(type) {
+	case []interface{}:
 		n.Networks = []*Network{}
-		for _, network := range sliceType {
+		for _, network := range v {
 			name, ok := network.(string)
 			if !ok {
 				return fmt.Errorf("Cannot unmarshal '%v' to type %T into a string value", name, name)
@@ -43,13 +42,9 @@ func (n *Networks) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				Name: name,
 			})
 		}
-		return nil
-	}
-
-	var mapType map[interface{}]interface{}
-	if err := unmarshal(&mapType); err == nil {
+	case map[interface{}]interface{}:
 		n.Networks = []*Network{}
-		for mapKey, mapValue := range mapType {
+		for mapKey, mapValue := range v {
 			name, ok := mapKey.(string)
 			if !ok {
 				return fmt.Errorf("Cannot unmarshal '%v' to type %T into a string value", name, name)
@@ -60,10 +55,10 @@ func (n *Networks) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			}
 			n.Networks = append(n.Networks, network)
 		}
-		return nil
+	default:
+		return fmt.Errorf("Failed to unmarshal Networks: %#v", value)
 	}
-
-	return errors.New("Failed to unmarshal Networks")
+	return nil
 }
 
 func handleNetwork(name string, value interface{}) (*Network, error) {

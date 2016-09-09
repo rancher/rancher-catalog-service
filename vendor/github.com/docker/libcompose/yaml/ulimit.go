@@ -1,7 +1,6 @@
 package yaml
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 )
@@ -13,30 +12,29 @@ type Ulimits struct {
 }
 
 // MarshalYAML implements the Marshaller interface.
-func (u Ulimits) MarshalYAML() (interface{}, error) {
+func (u Ulimits) MarshalYAML() (tag string, value interface{}, err error) {
 	ulimitMap := make(map[string]Ulimit)
 	for _, ulimit := range u.Elements {
 		ulimitMap[ulimit.Name] = ulimit
 	}
-	return ulimitMap, nil
+	return "", ulimitMap, nil
 }
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (u *Ulimits) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (u *Ulimits) UnmarshalYAML(tag string, value interface{}) error {
 	ulimits := make(map[string]Ulimit)
-
-	var mapType map[interface{}]interface{}
-	if err := unmarshal(&mapType); err == nil {
-		for mapKey, mapValue := range mapType {
+	switch v := value.(type) {
+	case map[interface{}]interface{}:
+		for mapKey, mapValue := range v {
 			name, ok := mapKey.(string)
 			if !ok {
 				return fmt.Errorf("Cannot unmarshal '%v' to type %T into a string value", name, name)
 			}
 			var soft, hard int64
 			switch mv := mapValue.(type) {
-			case int:
-				soft = int64(mv)
-				hard = int64(mv)
+			case int64:
+				soft = mv
+				hard = mv
 			case map[interface{}]interface{}:
 				if len(mv) != 2 {
 					return fmt.Errorf("Failed to unmarshal Ulimit: %#v", mapValue)
@@ -44,9 +42,9 @@ func (u *Ulimits) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				for mkey, mvalue := range mv {
 					switch mkey {
 					case "soft":
-						soft = int64(mvalue.(int))
+						soft = mvalue.(int64)
 					case "hard":
-						hard = int64(mvalue.(int))
+						hard = mvalue.(int64)
 					default:
 						// FIXME(vdemeester) Should we ignore or fail ?
 						continue
@@ -71,10 +69,10 @@ func (u *Ulimits) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		for _, key := range keys {
 			u.Elements = append(u.Elements, ulimits[key])
 		}
-		return nil
+	default:
+		return fmt.Errorf("Failed to unmarshal Ulimit: %#v", value)
 	}
-
-	return errors.New("Failed to unmarshal Ulimit")
+	return nil
 }
 
 // Ulimit represents ulimit information.
@@ -89,11 +87,11 @@ type ulimitValues struct {
 }
 
 // MarshalYAML implements the Marshaller interface.
-func (u Ulimit) MarshalYAML() (interface{}, error) {
+func (u Ulimit) MarshalYAML() (tag string, value interface{}, err error) {
 	if u.Soft == u.Hard {
-		return u.Soft, nil
+		return "", u.Soft, nil
 	}
-	return u.ulimitValues, nil
+	return "", u.ulimitValues, err
 }
 
 // NewUlimit creates a Ulimit based on the specified parts.
