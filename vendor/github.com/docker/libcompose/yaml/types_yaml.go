@@ -1,7 +1,6 @@
 package yaml
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,65 +8,50 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 )
 
-// StringorInt represents a string or an integer.
-type StringorInt int64
-
-// UnmarshalYAML implements the Unmarshaller interface.
-func (s *StringorInt) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var intType int64
-	if err := unmarshal(&intType); err == nil {
-		*s = StringorInt(intType)
-		return nil
-	}
-
-	var stringType string
-	if err := unmarshal(&stringType); err == nil {
-		intType, err := strconv.ParseInt(stringType, 10, 64)
-		if err != nil {
-			return err
-		}
-		*s = StringorInt(intType)
-		return nil
-	}
-
-	return errors.New("Failed to unmarshal StringorInt")
-}
-
-// Stringorslice represents
-// Using engine-api Strslice and augment it with YAML marshalling stuff. a string or an array of strings.
+// Stringorslice represents a string or an array of strings.
+// Using engine-api Strslice and augment it with YAML marshalling stuff.
 type Stringorslice strslice.StrSlice
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (s *Stringorslice) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var stringType string
-	if err := unmarshal(&stringType); err == nil {
-		*s = []string{stringType}
-		return nil
-	}
-
-	var sliceType []interface{}
-	if err := unmarshal(&sliceType); err == nil {
-		parts, err := toStrings(sliceType)
+func (s *Stringorslice) UnmarshalYAML(tag string, value interface{}) error {
+	switch value := value.(type) {
+	case []interface{}:
+		parts, err := toStrings(value)
 		if err != nil {
 			return err
 		}
 		*s = parts
-		return nil
+	case string:
+		*s = []string{value}
+	default:
+		return fmt.Errorf("Failed to unmarshal Stringorslice: %#v", value)
 	}
-
-	return errors.New("Failed to unmarshal Stringorslice")
+	return nil
 }
 
 // SliceorMap represents a slice or a map of strings.
 type SliceorMap map[string]string
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (s *SliceorMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
-
-	var sliceType []interface{}
-	if err := unmarshal(&sliceType); err == nil {
+func (s *SliceorMap) UnmarshalYAML(tag string, value interface{}) error {
+	switch value := value.(type) {
+	case map[interface{}]interface{}:
 		parts := map[string]string{}
-		for _, s := range sliceType {
+		for k, v := range value {
+			if sk, ok := k.(string); ok {
+				if sv, ok := v.(string); ok {
+					parts[sk] = sv
+				} else {
+					return fmt.Errorf("Cannot unmarshal '%v' of type %T into a string value", v, v)
+				}
+			} else {
+				return fmt.Errorf("Cannot unmarshal '%v' of type %T into a string value", k, k)
+			}
+		}
+		*s = parts
+	case []interface{}:
+		parts := map[string]string{}
+		for _, s := range value {
 			if str, ok := s.(string); ok {
 				str := strings.TrimSpace(str)
 				keyValueSlice := strings.SplitN(str, "=", 2)
@@ -83,28 +67,10 @@ func (s *SliceorMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			}
 		}
 		*s = parts
-		return nil
+	default:
+		return fmt.Errorf("Failed to unmarshal SliceorMap: %#v", value)
 	}
-
-	var mapType map[interface{}]interface{}
-	if err := unmarshal(&mapType); err == nil {
-		parts := map[string]string{}
-		for k, v := range mapType {
-			if sk, ok := k.(string); ok {
-				if sv, ok := v.(string); ok {
-					parts[sk] = sv
-				} else {
-					return fmt.Errorf("Cannot unmarshal '%v' of type %T into a string value", v, v)
-				}
-			} else {
-				return fmt.Errorf("Cannot unmarshal '%v' of type %T into a string value", k, k)
-			}
-		}
-		*s = parts
-		return nil
-	}
-
-	return errors.New("Failed to unmarshal SliceorMap")
+	return nil
 }
 
 // MaporEqualSlice represents a slice of strings that gets unmarshal from a
@@ -112,8 +78,8 @@ func (s *SliceorMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type MaporEqualSlice []string
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (s *MaporEqualSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	parts, err := unmarshalToStringOrSepMapParts(unmarshal, "=")
+func (s *MaporEqualSlice) UnmarshalYAML(tag string, value interface{}) error {
+	parts, err := unmarshalToStringOrSepMapParts(value, "=")
 	if err != nil {
 		return err
 	}
@@ -131,8 +97,8 @@ func (s *MaporEqualSlice) ToMap() map[string]string {
 type MaporColonSlice []string
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (s *MaporColonSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	parts, err := unmarshalToStringOrSepMapParts(unmarshal, ":")
+func (s *MaporColonSlice) UnmarshalYAML(tag string, value interface{}) error {
+	parts, err := unmarshalToStringOrSepMapParts(value, ":")
 	if err != nil {
 		return err
 	}
@@ -150,8 +116,8 @@ func (s *MaporColonSlice) ToMap() map[string]string {
 type MaporSpaceSlice []string
 
 // UnmarshalYAML implements the Unmarshaller interface.
-func (s *MaporSpaceSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	parts, err := unmarshalToStringOrSepMapParts(unmarshal, " ")
+func (s *MaporSpaceSlice) UnmarshalYAML(tag string, value interface{}) error {
+	parts, err := unmarshalToStringOrSepMapParts(value, " ")
 	if err != nil {
 		return err
 	}
@@ -164,16 +130,15 @@ func (s *MaporSpaceSlice) ToMap() map[string]string {
 	return toMap(*s, " ")
 }
 
-func unmarshalToStringOrSepMapParts(unmarshal func(interface{}) error, key string) ([]string, error) {
-	var sliceType []interface{}
-	if err := unmarshal(&sliceType); err == nil {
-		return toStrings(sliceType)
+func unmarshalToStringOrSepMapParts(value interface{}, key string) ([]string, error) {
+	switch value := value.(type) {
+	case []interface{}:
+		return toStrings(value)
+	case map[interface{}]interface{}:
+		return toSepMapParts(value, key)
+	default:
+		return nil, fmt.Errorf("Failed to unmarshal Map or Slice: %#v", value)
 	}
-	var mapType map[interface{}]interface{}
-	if err := unmarshal(&mapType); err == nil {
-		return toSepMapParts(mapType, key)
-	}
-	return nil, errors.New("Failed to unmarshal MaporSlice")
 }
 
 func toSepMapParts(value map[interface{}]interface{}, sep string) ([]string, error) {
@@ -185,8 +150,6 @@ func toSepMapParts(value map[interface{}]interface{}, sep string) ([]string, err
 		if sk, ok := k.(string); ok {
 			if sv, ok := v.(string); ok {
 				parts = append(parts, sk+sep+sv)
-			} else if sv, ok := v.(int); ok {
-				parts = append(parts, sk+sep+strconv.Itoa(sv))
 			} else if sv, ok := v.(int64); ok {
 				parts = append(parts, sk+sep+strconv.FormatInt(sv, 10))
 			} else if v == nil {
