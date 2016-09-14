@@ -176,7 +176,6 @@ def test_template_bindings_property(client):
                     service_map = resp['bindings']['services'][service]
                     assert service_map['labels'] is not None
                     assert service_map['ports'] is not None
-                    assert service_map['scale'] is not None
 
 
 def test_template_upgrade_version_links_compare_versions(client):
