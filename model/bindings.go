@@ -6,13 +6,15 @@ import (
 	utils "github.com/docker/libcompose/utils"
 	libYaml "github.com/docker/libcompose/yaml"
 	"github.com/rancher/rancher-compose/preprocess"
-	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 )
 
-type mapLabel map[string]interface{}
-type portArray []interface{}
+//MapLabel represents labels from bindings
+type MapLabel map[string]interface{}
+
+//PortArray represents ports from bindings
+type PortArray []interface{}
 
 //BindingProperty holds bindings
 type BindingProperty map[string]interface{}
@@ -23,105 +25,77 @@ type ServiceBinding struct {
 	Ports  []interface{}          `json:"ports"`
 }
 
-//CreateBindingsRancher creates bindings property for rancher-compose.yml
-func CreateBindingsRancher(pathToYml string) (BindingProperty, error) {
-	var rawConfigRancher config.RawServiceMap
-	var bindingsMap map[string]ServiceBinding
+//CreateBindings creates bindings property
+func CreateBindings(pathToYml string) (BindingProperty, error) {
+
 	var bindingPropertyMap BindingProperty
-	var rawConfigDocker config.RawServiceMap
-	var labels libYaml.SliceorMap
-
-	bindingsMap = make(map[string]ServiceBinding)
-	bindingPropertyMap = make(map[string]interface{})
-
-	rancherFile := pathToYml + "/rancher-compose.yml"
 
 	dockerFile := pathToYml + "/docker-compose.yml"
 	_, err := os.Stat(dockerFile)
-	if err == nil {
-		yamlContent, err := ioutil.ReadFile(dockerFile)
-		if err != nil {
-			log.Errorf("Error in opening file : %v\n", err)
-			return nil, err
-		}
-		config, err := config.CreateConfig(yamlContent)
-		if err != nil {
-			return nil, err
-		}
-		rawConfigDocker := config.Services
-
-		rawConfigDocker, err = preprocess.PreprocessServiceMap(rawConfigDocker)
-		if err != nil {
-			log.Errorf("Error during preprocess : %v\n", err)
-			return nil, err
-		}
+	if os.IsNotExist(err) {
+		return BindingProperty{}, nil
 	}
 
-	rancherYaml, err := ioutil.ReadFile(rancherFile)
+	yamlContent, err := ioutil.ReadFile(dockerFile)
 	if err != nil {
 		log.Errorf("Error in opening file : %v\n", err)
 		return nil, err
 	}
 
-	err = yaml.Unmarshal(rancherYaml, &rawConfigRancher)
+	bindingPropertyMap, err = ExtractBindings(yamlContent)
 	if err != nil {
-		log.Errorf("Error during Unmarshal  for rancher-compose: %v\n", err)
+		return nil, err
+	}
+	return bindingPropertyMap, nil
+}
+
+//ExtractBindings gets bindings from created RawServiceMap
+func ExtractBindings(yamlContent []byte) (BindingProperty, error) {
+	var rawConfigDocker config.RawServiceMap
+	var bindingsMap map[string]ServiceBinding
+	var bindingPropertyMap BindingProperty
+	var labels libYaml.SliceorMap
+
+	config, err := config.CreateConfig(yamlContent)
+	if err != nil {
+		return nil, err
+	}
+	rawConfigDocker = config.Services
+
+	rawConfigDocker, err = preprocess.PreprocessServiceMap(rawConfigDocker)
+	if err != nil {
+		log.Errorf("Error during preprocess : %v\n", err)
 		return nil, err
 	}
 
-	rawConfigRancher, err = preprocess.PreprocessServiceMap(rawConfigRancher)
-	if err != nil {
-		log.Errorf("Error in PreprocessServiceMap : %v\n", err)
-		return nil, err
-	}
-	for key := range rawConfigRancher {
-		if key != ".catalog" {
-			newServiceBinding := ServiceBinding{}
-
-			newServiceBinding.Labels = mapLabel{}
-			newServiceBinding.Ports = portArray{}
-
-			if rawConfigDocker[key]["labels"] != nil {
-				err := utils.Convert(rawConfigDocker[key]["labels"], &labels)
-				if err != nil {
-					return nil, err
-				}
-				for k, v := range labels {
-					newServiceBinding.Labels[k] = v
-				}
-			}
-			if rawConfigDocker[key]["ports"] != nil {
-				newServiceBinding.Ports = append(newServiceBinding.Ports, rawConfigDocker[key]["ports"])
-			}
-			bindingsMap[key] = newServiceBinding
-		}
-	}
+	bindingsMap = make(map[string]ServiceBinding)
+	bindingPropertyMap = make(map[string]interface{})
 
 	for key := range rawConfigDocker {
 		if _, serviceParsed := bindingsMap[key]; serviceParsed {
 			log.Debugf("Service bindings already provided")
 			continue
 		}
-		if key != ".catalog" {
-			newServiceBinding := ServiceBinding{}
+		newServiceBinding := ServiceBinding{}
 
-			newServiceBinding.Labels = mapLabel{}
-			newServiceBinding.Ports = portArray{}
+		newServiceBinding.Labels = MapLabel{}
+		newServiceBinding.Ports = PortArray{}
 
-			if rawConfigDocker[key]["labels"] != nil {
-				err := utils.Convert(rawConfigDocker[key]["labels"], &labels)
-				if err != nil {
-					return nil, err
-				}
-				for k, v := range labels {
-					newServiceBinding.Labels[k] = v
-				}
+		if rawConfigDocker[key]["labels"] != nil {
+			err := utils.Convert(rawConfigDocker[key]["labels"], &labels)
+			if err != nil {
+				return nil, err
 			}
-			if rawConfigDocker[key]["ports"] != nil {
-				newServiceBinding.Ports = append(newServiceBinding.Ports, rawConfigDocker[key]["ports"])
+			for k, v := range labels {
+				newServiceBinding.Labels[k] = v
 			}
-			bindingsMap[key] = newServiceBinding
 		}
+		if rawConfigDocker[key]["ports"] != nil {
+			for _, port := range rawConfigDocker[key]["ports"].([]interface{}) {
+				newServiceBinding.Ports = append(newServiceBinding.Ports, port)
+			}
+		}
+		bindingsMap[key] = newServiceBinding
 	}
 
 	bindingPropertyMap["services"] = bindingsMap
