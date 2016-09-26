@@ -44,11 +44,12 @@ func CreateBindingsRancher(pathToYml string) (BindingProperty, error) {
 			log.Errorf("Error in opening file : %v\n", err)
 			return nil, err
 		}
-		err = yaml.Unmarshal(yamlContent, &rawConfigDocker)
+		config, err := config.CreateConfig(yamlContent)
 		if err != nil {
-			log.Errorf("Error during Unmarshal for file %s : %v\n", dockerFile, err)
 			return nil, err
 		}
+		rawConfigDocker := config.Services
+
 		rawConfigDocker, err = preprocess.PreprocessServiceMap(rawConfigDocker)
 		if err != nil {
 			log.Errorf("Error during preprocess : %v\n", err)
