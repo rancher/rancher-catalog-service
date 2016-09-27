@@ -36,4 +36,5 @@ type RancherCompose struct {
 	MinimumRancherVersion string            `json:"minimumRancherVersion" yaml:"minimum_rancher_version,omitempty"`
 	Output                Output            `json:"output" yaml:"output,omitempty"`
 	Labels                map[string]string `json:"labels" yaml:"labels,omitempty"`
+	UpgradeFrom           string            `json:"upgradeFrom" yaml:"upgrade_from,omitempty"`
 }
