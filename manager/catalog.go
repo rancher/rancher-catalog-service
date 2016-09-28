@@ -155,6 +155,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 		newTemplate.VersionLinks = make(map[string]string)
 		newTemplate.CatalogID = cat.CatalogID
 		newTemplate.TemplateVersionRancherVersion = make(map[string]string)
+		newTemplate.TemplateVersionRancherVersionGte = make(map[string]string)
 		dirList, err := ioutil.ReadDir(path)
 		if err != nil {
 			log.Errorf("Error reading directories at path: %s, error: %v", f.Name(), err)
@@ -167,6 +168,7 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 					if err == nil {
 						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
+						newTemplate.TemplateVersionRancherVersionGte[subTemplate.Version] = subTemplate.MaximumRancherVersion
 					} else {
 						if ValidationMode {
 							log.Fatalf("Error processing the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
@@ -300,6 +302,8 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 		return err
 	}
 	newTemplate.Bindings = binding
+	newTemplate.MaximumRancherVersion = RC[".catalog"].MaximumRancherVersion
+	newTemplate.UpgradeFrom = RC[".catalog"].UpgradeFrom
 	return nil
 }
 

@@ -79,12 +79,26 @@ func GetTemplatesForCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Debugf("Request to get all templates under catalog %s with minimumRancherVersion <= %s", catalogID, rancherVersion)
 		}
 
+		rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+		if rancherVersionGte != "" {
+			log.Debugf("Request to get all templates under catalog %s with maximumRancherVersion >= %s", catalogID, rancherVersionGte)
+		}
+
 		//read the catalog
 		resp := model.TemplateCollection{}
 		for _, value := range templates {
 			if rancherVersion != "" {
 				var err error
 				value.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &value)
+				if err != nil {
+					//cannot apply the filter, return empty set
+					break
+				}
+			}
+
+			if rancherVersionGte != "" {
+				var err error
+				value.VersionLinks, err = filterByMaximumRancherVersion(rancherVersionGte, &value)
 				if err != nil {
 					//cannot apply the filter, return empty set
 					break
@@ -143,6 +157,11 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("And templates with minimumRancherVersion <= %s", rancherVersion)
 	}
 
+	rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+	if rancherVersionGte != "" {
+		log.Debugf("And templates with maximumRancherVersion >= %s", rancherVersionGte)
+	}
+
 	category := r.URL.Query().Get("category_ne")
 	if category != "" {
 		log.Debugf("And templates with category not = %s", category)
@@ -162,6 +181,15 @@ func ListTemplates(w http.ResponseWriter, r *http.Request) {
 		if rancherVersion != "" {
 			var err error
 			value.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &value)
+			if err != nil {
+				//cannot apply the filter, return empty set
+				break
+			}
+		}
+
+		if rancherVersionGte != "" {
+			var err error
+			value.VersionLinks, err = filterByMaximumRancherVersion(rancherVersionGte, &value)
 			if err != nil {
 				//cannot apply the filter, return empty set
 				break
@@ -224,6 +252,40 @@ func filterByMinimumRancherVersion(rancherVersion string, template *model.Templa
 	return copyOfversionLinks, nil
 }
 
+func filterByMaximumRancherVersion(rancherVersion string, template *model.Template) (map[string]string, error) {
+	copyOfversionLinks := make(map[string]string)
+
+	vB, err := getSemVersion(rancherVersion)
+	if err != nil {
+		log.Errorf("Error loading the passed filter maximumRancherVersion_gte with semver %s", err.Error())
+		return copyOfversionLinks, err
+	}
+
+	for templateVersion, maxRancherVersion := range template.TemplateVersionRancherVersionGte {
+		if maxRancherVersion != "" {
+			vA, err := getSemVersion(maxRancherVersion)
+			if err != nil {
+				log.Errorf("Error loading version with semver %s", err.Error())
+				continue
+			}
+
+			if maxRancherVersion == rancherVersion || vA.GT(*vB) {
+				//this template version passes the filter
+				if template.VersionLinks[templateVersion] != "" {
+					copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+				}
+			}
+		} else {
+			//no max rancher version specified, so this template works with any rancher version
+			if template.VersionLinks[templateVersion] != "" {
+				copyOfversionLinks[templateVersion] = template.VersionLinks[templateVersion]
+			}
+		}
+	}
+
+	return copyOfversionLinks, nil
+}
+
 func getSemVersion(versionStr string) (*semver.Version, error) {
 	versionStr = re.ReplaceAllString(versionStr, "$1")
 
@@ -249,6 +311,25 @@ func isMinRancherVersionLTE(templateMinRancherVersion string, rancherVersion str
 	}
 
 	if templateMinRancherVersion == rancherVersion || vA.LT(*vB) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func isMaxRancherVersionGTE(templateMaxRancherVersion string, rancherVersion string) (bool, error) {
+	vA, err := getSemVersion(templateMaxRancherVersion)
+	if err != nil {
+		log.Errorf("Error loading template maxRancherVersion %s with semver %s", templateMaxRancherVersion, err.Error())
+		return false, err
+	}
+
+	vB, err := getSemVersion(rancherVersion)
+	if err != nil {
+		log.Errorf("Error loading the passed filter maximumRancherVersion_gte %s with semver %s", rancherVersion, err.Error())
+		return false, err
+	}
+
+	if templateMaxRancherVersion == rancherVersion || vA.GT(*vB) {
 		return true, nil
 	}
 	return false, nil
@@ -301,6 +382,10 @@ func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWr
 	if rancherVersion != "" {
 		log.Debugf("only versions with minimumRancherVersion <= %s", rancherVersion)
 	}
+	rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+	if rancherVersionGte != "" {
+		log.Debugf("only versions with maximumRancherVersion >= %s", rancherVersionGte)
+	}
 	templateMetadata, ok := manager.GetTemplateMetadata(catalogID, templateID)
 	if ok {
 		if rancherVersion != "" {
@@ -309,6 +394,15 @@ func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWr
 			if err != nil {
 				log.Debugf("Cannot apply the minimumRancherVersion_lte filter for template: %s", path)
 				ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot apply the minimumRancherVersion_lte filter for template: %s", tempID))
+			}
+		}
+
+		if rancherVersionGte != "" {
+			var err error
+			templateMetadata.VersionLinks, err = filterByMaximumRancherVersion(rancherVersionGte, &templateMetadata)
+			if err != nil {
+				log.Debugf("Cannot apply the maximumRancherVersion_gte filter for template: %s", path)
+				ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot apply the maximumRancherVersion_gte filter for template: %s", tempID))
 			}
 		}
 		PopulateTemplateLinks(r, &templateMetadata)
@@ -328,6 +422,10 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
 	if rancherVersion != "" {
 		log.Debugf("and if minimumRancherVersion <= %s", rancherVersion)
+	}
+	rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+	if rancherVersionGte != "" {
+		log.Debugf("and if maximumRancherVersion >= %s", rancherVersionGte)
 	}
 
 	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
@@ -350,6 +448,26 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 				}
 			}
 		}
+
+		if rancherVersionGte != "" {
+			if template.MaximumRancherVersion != "" {
+				//check that this template can be returned for this rancherVersion
+				isGTE, err := isMaxRancherVersionGTE(template.MaximumRancherVersion, rancherVersionGte)
+
+				if err != nil {
+					log.Errorf("Error applying filter maximumRancherVersion_gte with semver %s", err.Error())
+					api.GetApiContext(r).Write(&model.Template{})
+					return
+				}
+
+				if !isGTE {
+					log.Debugf("Cannot return this template since maximumRancherVersion is not >= %s", rancherVersionGte)
+					api.GetApiContext(r).Write(&model.Template{})
+					return
+				}
+			}
+		}
+
 		template.Type = "templateVersion"
 		template.VersionLinks = PopulateTemplateLinks(r, template)
 		upgradeInfo := GetUpgradeInfo(r, template.Path)
@@ -405,6 +523,10 @@ func GetUpgradeInfo(r *http.Request, path string) model.UpgradeInfo {
 	if rancherVersion != "" {
 		log.Debugf("and with minimumRancherVersion <= %s", rancherVersion)
 	}
+	rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+	if rancherVersionGte != "" {
+		log.Debugf("and if maximumRancherVersion >= %s", rancherVersionGte)
+	}
 
 	templateMetadata, ok := manager.GetNewTemplateVersions(path)
 	if ok {
@@ -413,6 +535,14 @@ func GetUpgradeInfo(r *http.Request, path string) model.UpgradeInfo {
 			templateMetadata.VersionLinks, err = filterByMinimumRancherVersion(rancherVersion, &templateMetadata)
 			if err != nil {
 				log.Debugf("Cannot provide upgradeInfo as cannot apply the minimumRancherVersion_lte filter for template: %s", path)
+				return upgradeInfo
+			}
+		}
+		if rancherVersionGte != "" {
+			var err error
+			templateMetadata.VersionLinks, err = filterByMaximumRancherVersion(rancherVersionGte, &templateMetadata)
+			if err != nil {
+				log.Debugf("Cannot provide upgradeInfo as cannot apply the maximumRancherVersion_gte filter for template: %s", path)
 				return upgradeInfo
 			}
 		}
