@@ -51,6 +51,8 @@ var (
 	refreshReqChannel = make(chan int, 1)
 	//CatalogsCollection is the map storing template catalogs
 	CatalogsCollection map[string]*Catalog
+	//UpdatedCatalogsCollection is the map storing updated template catalogs
+	UpdatedCatalogsCollection map[string]*Catalog
 	//CatalogReadyChannel signals if the catalog is cloned and loaded in memmory
 	CatalogReadyChannel = make(chan int, 1)
 
@@ -163,7 +165,10 @@ func SetEnv() {
 	}
 	log.SetFormatter(textFormatter)
 	if catalogURL != nil {
-		CatalogsCollection = make(map[string]*Catalog)
+		if len(CatalogsCollection) == 0 {
+			CatalogsCollection = make(map[string]*Catalog)
+		}
+		UpdatedCatalogsCollection = make(map[string]*Catalog)
 		PathToImage = make(map[string]string)
 		PathToReadme = make(map[string]string)
 
@@ -201,12 +206,12 @@ func SetEnv() {
 					refChan := make(chan int, 1)
 					newCatalog.refreshReqChannel = &refChan
 					newCatalog.catalogRoot = CatalogRootDir + tokens[0]
-					CatalogsCollection[tokens[0]] = &newCatalog
+					UpdatedCatalogsCollection[tokens[0]] = &newCatalog
 					log.Infof("Using catalog %s=%s", tokens[0], url)
 				}
-				// Init()
 			}
 		}
+		CatalogsCollection = UpdatedCatalogsCollection
 	} else {
 		err := "Halting Catalog service, Catalog git repo url not provided"
 		log.Fatal(err)
