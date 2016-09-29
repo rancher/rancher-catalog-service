@@ -19,7 +19,6 @@ type BindingProperty map[string]interface{}
 
 //ServiceBinding holds the fields for ServiceBinding
 type ServiceBinding struct {
-	Scale  interface{}            `json:"scale"`
 	Labels map[string]interface{} `json:"labels"`
 	Ports  []interface{}          `json:"ports"`
 }
@@ -80,11 +79,6 @@ func CreateBindingsRancher(pathToYml string) (BindingProperty, error) {
 
 			newServiceBinding.Labels = mapLabel{}
 			newServiceBinding.Ports = portArray{}
-			newServiceBinding.Scale = 0
-
-			if rawConfigRancher[key]["scale"] != nil {
-				newServiceBinding.Scale = rawConfigRancher[key]["scale"]
-			}
 
 			if rawConfigDocker[key]["labels"] != nil {
 				err := utils.Convert(rawConfigDocker[key]["labels"], &labels)
@@ -112,7 +106,6 @@ func CreateBindingsRancher(pathToYml string) (BindingProperty, error) {
 
 			newServiceBinding.Labels = mapLabel{}
 			newServiceBinding.Ports = portArray{}
-			newServiceBinding.Scale = 0
 
 			if rawConfigDocker[key]["labels"] != nil {
 				err := utils.Convert(rawConfigDocker[key]["labels"], &labels)
