@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -256,22 +257,28 @@ func readTemplateConfig(relativePath string, template *model.Template) {
 	if err != nil {
 		log.Errorf("Error reading config file under template: %s, error: %v", relativePath, err)
 	} else {
-		config := make(map[string]string)
+		config := make(map[string]interface{})
 
 		//Read the config.yml file
 		err = yaml.Unmarshal(yamlFile, &config)
 		if err != nil {
 			log.Errorf("Error unmarshalling config.yml under template: %s, error: %v", relativePath, err)
 		} else {
-			template.Name = config["name"]
-			template.Category = config["category"]
-			template.Description = config["description"]
-			template.Version = config["version"]
-			template.Maintainer = config["maintainer"]
-			template.License = config["license"]
-			template.ProjectURL = config["projectURL"]
-			template.IsSystem = config["isSystem"]
-			template.DefaultVersion = config["version"]
+			template.Name, _ = config["name"].(string)
+			template.Category, _ = config["category"].(string)
+			template.Description, _ = config["description"].(string)
+			template.Version, _ = config["version"].(string)
+			template.Maintainer, _ = config["maintainer"].(string)
+			template.License, _ = config["license"].(string)
+			template.ProjectURL, _ = config["projectURL"].(string)
+			template.IsSystem, _ = config["isSystem"].(string)
+			template.DefaultVersion, _ = config["version"].(string)
+			template.Labels = map[string]string{}
+
+			labels, _ := config["labels"].(map[interface{}]interface{})
+			for k, v := range labels {
+				template.Labels[fmt.Sprint(k)] = fmt.Sprint(v)
+			}
 		}
 	}
 }
