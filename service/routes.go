@@ -99,6 +99,9 @@ func NewRouter() *mux.Router {
 	// Template Version
 	templateVersion := schemas.AddType("templateVersion", model.Template{})
 	templateVersion.CollectionMethods = []string{}
+	f := templateVersion.ResourceFields["questions"]
+	f.Type = "array[question]"
+	templateVersion.ResourceFields["questions"] = f
 
 	// Catalog
 	catalog := schemas.AddType("catalog", manager.Catalog{})
