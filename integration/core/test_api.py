@@ -142,6 +142,41 @@ def test_template_minimum_rancher_version_filter(client):
                     assert len(upgradeUrls) > len(minUpgradeUrls)
 
 
+def test_template_maximum_rancher_version_filter(client):
+    templates = client.list_template(catalogId='qa-catalog',
+                                     maximumRancherVersion_gte='v0.46.0')
+    assert len(templates) > 0
+
+    temp = client.list_template(catalogId='qa-catalog',
+                                maximumRancherVersion_gte='v0.46.0-dev5-rc1')
+    assert len(temp) > 0
+
+    # test to check the maximumRancherVersion_gte is applied to upgradeInfo
+    # as well
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].id == unicode('qa-catalog:many-versions'):
+                versionUrlsMap = templates[i].versionLinks
+                if len(versionUrlsMap) > 0:
+                    url_to_try = versionUrlsMap.get(unicode('1.0.0'))
+                    version_response = requests.get(url_to_try)
+                    assert version_response is not 404
+                    response_json = version_response.json()
+                    upgradeUrls = response_json.\
+                        get(unicode('upgradeVersionLinks'))
+                    assert upgradeUrls is not None
+                    max_version_response = requests.\
+                        get(url_to_try +
+                            "?maximumRancherVersion_gte=v1.5.0")
+                    assert version_response is not 404
+                    max_response_json = max_version_response.json()
+                    maxUpgradeUrls = max_response_json.\
+                        get(unicode('upgradeVersionLinks'))
+                    assert maxUpgradeUrls is not None
+                    assert len(upgradeUrls) > len(maxUpgradeUrls)
+
+
 def test_template_upgrade_version_links(client):
     templates = client.list_template(catalogId='qa-catalog')
     if len(templates) > 0:
@@ -201,3 +236,21 @@ def test_template_upgrade_version_links_compare_versions(client):
                     == sorted(upgradeUrls.keys())
                 assert len(upgradeUrls) == len(versionsArray) \
                     - versionIndex - 1
+
+
+def test_template_upgrade_from(client):
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'Test Upgrade Links':
+                versionUrlsMap = templates[i].versionLinks
+        if len(versionUrlsMap) > 0:
+            for key in versionUrlsMap.keys():
+                url_to_try = versionUrlsMap[key]
+                version_response = requests.get(url_to_try)
+                assert version_response is not 404
+                response_json = version_response.json()
+                upgradeUrls = response_json. \
+                    get(unicode('upgradeVersionLinks'))
+                if key == "1.0.0":
+                    assert len(upgradeUrls) == 10
