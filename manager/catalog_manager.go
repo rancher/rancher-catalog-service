@@ -214,7 +214,7 @@ func SetEnv() {
 		CatalogsCollection = UpdatedCatalogsCollection
 	} else {
 		err := "Halting Catalog service, Catalog git repo url not provided"
-		log.Fatal(err)
+		log.Info(err)
 		_ = fmt.Errorf(err)
 	}
 }
