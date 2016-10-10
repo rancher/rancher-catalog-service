@@ -1,11 +1,16 @@
 import pytest
 import cattle
 import requests
+from wait_for import wait_for
 
 
 @pytest.fixture
 def client():
     url = 'http://localhost:8088/v1-catalog/schemas'
+    templates = cattle.from_env(url=url).list_template(catalogId='qa-catalog')
+    wait_for(
+        lambda: len(templates) > 0
+    )
     return cattle.from_env(url=url)
 
 
@@ -185,14 +190,14 @@ def test_template_upgrade_version_links(client):
             if len(versionUrlsMap) > 0:
                 for key in versionUrlsMap.keys():
                     url_to_try = versionUrlsMap[key]
-                version_response = requests.get(url_to_try)
-                assert version_response is not 404
-                response_json = version_response.json()
-                upgradeUrls = response_json. \
-                    get(unicode('upgradeVersionLinks'))
-                if upgradeUrls is not None:
-                    for key in upgradeUrls.keys():
-                        assert upgradeUrls[key] is not None
+                    version_response = requests.get(url_to_try)
+                    assert version_response is not 404
+                    response_json = version_response.json()
+                    upgradeUrls = response_json. \
+                        get(unicode('upgradeVersionLinks'))
+                    if upgradeUrls is not None:
+                        for key in upgradeUrls.keys():
+                            assert upgradeUrls[key] is not None
 
 
 def test_template_bindings_property(client):
@@ -201,6 +206,9 @@ def test_template_bindings_property(client):
     for i in range(len(templates)):
         versionUrls = templates[i].versionLinks.values()
         for i in range(len(versionUrls)):
+            wait_for(
+                lambda: requests.get(versionUrls[i]).status_code == 200
+            )
             response = requests.get(versionUrls[i])
             assert response.status_code == 200
             resp = response.json()
