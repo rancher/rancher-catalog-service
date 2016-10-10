@@ -213,6 +213,7 @@ func SetEnv() {
 		}
 		CatalogsCollection = UpdatedCatalogsCollection
 	} else {
+		CatalogsCollection = make(map[string]*Catalog)
 		err := "Halting Catalog service, Catalog git repo url not provided"
 		log.Info(err)
 		_ = fmt.Errorf(err)
