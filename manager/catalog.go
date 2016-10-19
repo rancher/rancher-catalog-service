@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -126,20 +127,20 @@ func (cat *Catalog) cloneCatalog() error {
 	return nil
 }
 
-func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
-	//log.Debugf("Reading folder for template:%s %v", path, f)
+func (cat *Catalog) walkCatalog(filePath string, f os.FileInfo, err error) error {
+	//log.Debugf("Reading folder for template:%s %v", filePath, f)
 
-	if f != nil && f.IsDir() && metadataFolder.MatchString(path) {
+	if f != nil && f.IsDir() && metadataFolder.MatchString(filePath) {
 
 		//matches ./DATA/catalogID/templates/ElasticSearch or 	./DATA/catalogID/k8s-templates/ElasticSearch
 		// get the prefix like 'k8s' if any
-		prefix := metadataFolder.ReplaceAllString(path, "$2")
+		prefix := metadataFolder.ReplaceAllString(filePath, "$2")
 		prefixWithSeparator := prefix
 		if prefix != "" {
 			prefixWithSeparator = prefix + "*"
 		}
 
-		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), path)
+		log.Debugf("Reading metadata folder for template:%s, path: %v", f.Name(), filePath)
 		newTemplate := model.Template{
 			Resource: client.Resource{
 				Id:   cat.CatalogID + ":" + prefixWithSeparator + f.Name(),
@@ -150,14 +151,14 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 		}
 
 		//read the root level config.yml
-		readTemplateConfig(path, &newTemplate)
+		readTemplateConfig(filePath, &newTemplate)
 
 		//list the folders under the root level
 		newTemplate.VersionLinks = make(map[string]string)
 		newTemplate.CatalogID = cat.CatalogID
 		newTemplate.TemplateVersionRancherVersion = make(map[string]string)
 		newTemplate.TemplateVersionRancherVersionGte = make(map[string]string)
-		dirList, err := ioutil.ReadDir(path)
+		dirList, err := ioutil.ReadDir(filePath)
 		if err != nil {
 			log.Errorf("Error reading directories at path: %s, error: %v", f.Name(), err)
 		} else {
@@ -165,16 +166,17 @@ func (cat *Catalog) walkCatalog(path string, f os.FileInfo, err error) error {
 				if subfile.IsDir() {
 					//read the subversion config.yml file into a template
 					subTemplate := model.Template{}
-					err := readRancherCompose(path+"/"+subfile.Name(), &subTemplate)
+					err := readRancherCompose(path.Join(filePath, subfile.Name()), &subTemplate)
 					if err == nil {
 						newTemplate.VersionLinks[subTemplate.Version] = newTemplate.Id + ":" + subfile.Name()
 						newTemplate.TemplateVersionRancherVersion[subTemplate.Version] = subTemplate.MinimumRancherVersion
 						newTemplate.TemplateVersionRancherVersionGte[subTemplate.Version] = subTemplate.MaximumRancherVersion
 					} else {
+						subfilePath := path.Join(f.Name(), subfile.Name())
 						if ValidationMode {
-							log.Fatalf("Error processing the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
+							log.Fatalf("Error processing the template version: %s, error: %v", subfilePath, err)
 						}
-						log.Errorf("Skipping the template version: %s, error: %v", f.Name()+"/"+subfile.Name(), err)
+						log.Debugf("Skipping the template version: %s, error: %v", subfilePath, err)
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 					newTemplate.IconLink = newTemplate.Id + "?image"
@@ -287,7 +289,7 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 
 	composeBytes, err := readFile(relativePath, "rancher-compose.yml")
 	if err != nil {
-		return nil
+		return err
 	}
 
 	//read the questions section
@@ -315,14 +317,22 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 }
 
 func readFile(relativePath string, fileName string) (*[]byte, error) {
-	filename, err := filepath.Abs(relativePath + "/" + fileName)
+	filePath := path.Join(relativePath, fileName)
+	filename, err := filepath.Abs(filePath)
 	if err != nil {
-		log.Errorf("Error forming path to file %s, error: %v", relativePath+"/"+fileName, err)
+		log.Errorf("Error forming path to file %s, error: %v", filePath, err)
+		return nil, err
+	}
+
+	_, err = os.Stat(filename)
+	if os.IsNotExist(err) {
+		log.Debugf("File %s does not exist", filePath)
+		return nil, err
 	}
 
 	composeBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Errorf("Error reading file %s, error: %v", relativePath+"/"+fileName, err)
+		log.Errorf("Error reading file %s, error: %v", filePath, err)
 		return nil, err
 	}
 	return &composeBytes, nil
