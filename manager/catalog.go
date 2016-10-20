@@ -60,16 +60,16 @@ func (cat *Catalog) readCatalog() error {
 		repoURL = strings.TrimSpace(repoURL)
 		if repoURL == cat.URL {
 			log.Debugf("Catalog %v already exists with same repo url, pulling updates", cat.CatalogID)
-			err := cat.pullCatalog()
-			if err != nil {
-				log.Errorf("Git pull for Catalog %v failing with error: %v ", cat.CatalogID, err)
-			}
 			cat.metadata = make(map[string]model.Template)
 			//walk the catalog and read the metadata to the cache
 			filepath.Walk(cat.catalogRoot, cat.walkCatalog)
 			if ValidationMode {
 				log.Infof("Catalog loaded without errors")
 				os.Exit(0)
+			}
+			err := cat.pullCatalog()
+			if err != nil {
+				log.Errorf("Git pull for Catalog %v failing with error: %v ", cat.CatalogID, err)
 			}
 		} else {
 			//remove the existing repo

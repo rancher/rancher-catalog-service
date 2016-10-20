@@ -53,8 +53,6 @@ var (
 	CatalogsCollection map[string]*Catalog
 	//UpdatedCatalogsCollection is the map storing updated template catalogs
 	UpdatedCatalogsCollection map[string]*Catalog
-	//CatalogReadyChannel signals if the catalog is cloned and loaded in memmory
-	CatalogReadyChannel = make(chan int, 1)
 
 	//PathToImage holds the mapping between a template path in the repo to its image name
 	PathToImage map[string]string
@@ -228,7 +226,6 @@ func Init() {
 
 	//start a background timer to pull from the Catalog periodically
 	startCatalogBackgroundPoll()
-	CatalogReadyChannel <- 1
 }
 
 func startCatalogBackgroundPoll() {
