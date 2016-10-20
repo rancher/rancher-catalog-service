@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/rancher/go-rancher/api"
 	"github.com/rancher/go-rancher/client"
@@ -19,19 +18,7 @@ type MuxWrapper struct {
 }
 
 func (httpWrapper *MuxWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	select {
-	case <-manager.CatalogReadyChannel:
-		httpWrapper.IsReady = true
-	default:
-	}
-
-	if httpWrapper.IsReady {
-		//delegate to the mux router
-		httpWrapper.Router.ServeHTTP(w, r)
-	} else {
-		log.Debugf("Service Unavailable")
-		ReturnHTTPError(w, r, http.StatusServiceUnavailable, "Catalog Service is not yet available, please try again later")
-	}
+	httpWrapper.Router.ServeHTTP(w, r)
 }
 
 //ReturnHTTPError handles sending out CatalogError response
