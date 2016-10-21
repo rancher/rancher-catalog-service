@@ -224,6 +224,10 @@ func Init() {
 		catalog.readCatalog()
 	}
 
+	for _, catalog := range CatalogsCollection {
+		catalog.pullCatalog()
+	}
+
 	//start a background timer to pull from the Catalog periodically
 	startCatalogBackgroundPoll()
 }
