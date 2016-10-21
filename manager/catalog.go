@@ -12,6 +12,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libcompose/config"
+	"github.com/docker/libcompose/utils"
 	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
 	"gopkg.in/yaml.v2"
@@ -294,7 +296,13 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 
 	//read the questions section
 	RC := make(map[string]model.RancherCompose)
-	err = yaml.Unmarshal(*composeBytes, &RC)
+	config, err := config.CreateConfig(*composeBytes)
+	if err != nil {
+		return err
+	}
+	data := config.Services
+
+	err = utils.Convert(data, &RC)
 	if err != nil {
 		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", relativePath, err)
 		return err
