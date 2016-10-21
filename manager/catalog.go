@@ -68,10 +68,6 @@ func (cat *Catalog) readCatalog() error {
 				log.Infof("Catalog loaded without errors")
 				os.Exit(0)
 			}
-			err := cat.pullCatalog()
-			if err != nil {
-				log.Errorf("Git pull for Catalog %v failing with error: %v ", cat.CatalogID, err)
-			}
 		} else {
 			//remove the existing repo
 			err := os.RemoveAll(CatalogRootDir + cat.CatalogID)
