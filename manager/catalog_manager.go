@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -148,6 +149,29 @@ func SetEnv() {
 
 	if *validate {
 		ValidationMode = true
+	} else {
+		//Code to delete non-embedded catalogs
+		setCatalogDirectories := make(map[string]bool)
+		for _, cat := range catalogURL {
+			catalog := strings.Split(cat, "=")[0]
+			setCatalogDirectories[catalog] = true
+		}
+		//get all subdirs under catalogRoot, if they are not part of catalogDirectories then rm -rf
+		clonedCatalogDirectories, _ := ioutil.ReadDir(CatalogRootDir)
+		log.Debugf("Removing deleted catalogs\n")
+		for _, dir := range clonedCatalogDirectories {
+			clonedCatalog := dir.Name()
+			if !setCatalogDirectories[clonedCatalog] {
+				noPurge := path.Join(CatalogRootDir, clonedCatalog, ".nopurge")
+				_, err := os.Stat(noPurge)
+				if os.IsNotExist(err) {
+					err = os.RemoveAll(path.Join(CatalogRootDir, clonedCatalog))
+					if err != nil {
+						log.Errorf("Error %v removing directory %s", err, clonedCatalog)
+					}
+				}
+			}
+		}
 	}
 
 	if *logFile != "" {
