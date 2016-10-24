@@ -174,7 +174,7 @@ func (cat *Catalog) walkCatalog(filePath string, f os.FileInfo, err error) error
 						if ValidationMode {
 							log.Fatalf("Error processing the template version: %s, error: %v", subfilePath, err)
 						}
-						log.Debugf("Skipping the template version: %s, error: %v", subfilePath, err)
+						log.Infof("Skipping the template version: %s, error: %v", subfilePath, err)
 					}
 				} else if strings.HasPrefix(subfile.Name(), "catalogIcon") {
 					newTemplate.IconLink = newTemplate.Id + "?image"
