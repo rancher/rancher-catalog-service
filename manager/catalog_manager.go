@@ -369,10 +369,7 @@ func GetNewTemplateVersions(path string) (model.Template, bool) {
 	parentPath := tokens[1]
 	cVersion := tokens[2]
 
-	//refresh the catalog and sync any new changes
-
 	cat := CatalogsCollection[catalogID]
-	cat.refreshCatalog()
 
 	templateName, templateID := ExtractTemplatePrefixAndName(parentPath)
 	rancherComposePathCurrent := CatalogRootDir + catalogID + "/" + templateName + "/" + templateID + "/" + cVersion
