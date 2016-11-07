@@ -62,7 +62,8 @@ func ExtractBindings(yamlContent []byte) (BindingProperty, error) {
 	}
 	rawConfigDocker = config.Services
 
-	rawConfigDocker, err = preprocess.PreprocessServiceMap(rawConfigDocker)
+	preProcessServiceMap := preprocess.PreprocessServiceMap(nil)
+	rawConfigDocker, err = preProcessServiceMap(rawConfigDocker)
 	if err != nil {
 		log.Errorf("Error during preprocess : %v\n", err)
 		return nil, err
