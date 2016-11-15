@@ -498,6 +498,18 @@ func loadFile(catalogID string, templateID string, versionID string, fileNameMap
 		fileID = fileNameMap[catalogID+"/"+templateID]
 		path = "DATA/" + catalogID + "/" + prefix + "/" + templateName + "/" + fileID
 	}
+
+	if strings.EqualFold("image", r.URL.RawQuery) {
+		cat, _ := manager.GetCatalog(catalogID)
+		w.Header().Set("Etag", cat.Etags)
+
+		if match := r.Header.Get("If-None-Match"); match != "" {
+			if strings.Contains(match, cat.Etags) {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
+	}
 	log.Debugf("Request to load file: %s", path)
 	http.ServeFile(w, r, path)
 }

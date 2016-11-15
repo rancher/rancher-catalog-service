@@ -43,6 +43,7 @@ type Catalog struct {
 	refreshReqChannel *chan int
 	metadata          map[string]model.Template
 	URLBranch         string `json:"branch"`
+	Etags             string
 }
 
 func (cat *Catalog) getID() string {
@@ -225,6 +226,14 @@ func (cat *Catalog) pullCatalog() error {
 	}
 	cat.LastUpdated = time.Now().Format(time.RFC3339)
 	cat.State = "active"
+
+	etagGenerateCmd := exec.Command("git", "-C", cat.catalogRoot, "rev-parse", "HEAD")
+	out, err = etagGenerateCmd.Output()
+	if err != nil {
+		log.Errorf("Failed to get commit of %s, error: %v", cat.URL, err.Error())
+		return err
+	}
+	cat.Etags = string(out)
 	return nil
 }
 
