@@ -262,3 +262,14 @@ def test_template_upgrade_from(client):
                     get(unicode('upgradeVersionLinks'))
                 if key == "1.0.0":
                     assert len(upgradeUrls) == 10
+
+
+def test_v2_upgrade(client):
+    templates = client.list_template(catalogId='qa-catalog')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'version 2 test':
+                versionUrlsMap = templates[i].versionLinks
+        if len(versionUrlsMap) > 0:
+            versionsArray = ["1.0.0", "2.0.0", "3.0.0", "4.0.0"]
+            assert sorted(versionUrlsMap.keys()) == versionsArray
