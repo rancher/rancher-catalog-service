@@ -12,10 +12,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libcompose/config"
-	"github.com/docker/libcompose/utils"
 	"github.com/rancher/go-rancher/client"
 	"github.com/rancher/rancher-catalog-service/model"
+	"github.com/rancher/rancher-compose/lookup"
 	"gopkg.in/yaml.v2"
 )
 
@@ -290,33 +289,25 @@ func readRancherCompose(relativePath string, newTemplate *model.Template) error 
 		return err
 	}
 
-	//read the questions section
-	RC := make(map[string]model.RancherCompose)
-	config, err := config.CreateConfig(*composeBytes)
+	catalogConfig, err := lookup.ParseCatalogConfig(*composeBytes)
 	if err != nil {
 		return err
 	}
-	data := config.Services
 
-	err = utils.Convert(data, &RC)
-	if err != nil {
-		log.Errorf("Error unmarshalling %s under template: %s, error: %v", "rancher-compose.yml", relativePath, err)
-		return err
-	}
-	newTemplate.Questions = RC[".catalog"].Questions
-	newTemplate.Name = RC[".catalog"].Name
-	newTemplate.Description = RC[".catalog"].Description
-	newTemplate.Version = RC[".catalog"].Version
-	newTemplate.MinimumRancherVersion = RC[".catalog"].MinimumRancherVersion
-	newTemplate.Output = RC[".catalog"].Output
-	newTemplate.Labels = RC[".catalog"].Labels
+	newTemplate.Questions = catalogConfig.Questions
+	newTemplate.Name = catalogConfig.Name
+	newTemplate.Description = catalogConfig.Description
+	newTemplate.Version = catalogConfig.Version
+	newTemplate.MinimumRancherVersion = catalogConfig.MinimumRancherVersion
+	newTemplate.Output = catalogConfig.Output
+	newTemplate.Labels = catalogConfig.Labels
 	binding, err := model.CreateBindings(relativePath)
 	if err != nil {
 		return err
 	}
 	newTemplate.Bindings = binding
-	newTemplate.MaximumRancherVersion = RC[".catalog"].MaximumRancherVersion
-	newTemplate.UpgradeFrom = RC[".catalog"].UpgradeFrom
+	newTemplate.MaximumRancherVersion = catalogConfig.MaximumRancherVersion
+	newTemplate.UpgradeFrom = catalogConfig.UpgradeFrom
 	return nil
 }
 
