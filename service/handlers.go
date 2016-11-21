@@ -430,44 +430,6 @@ func loadTemplateVersion(catalogID string, templateID string, versionID string, 
 
 	template, ok := manager.ReadTemplateVersion(catalogID, templateID, versionID)
 	if ok {
-		if rancherVersion != "" {
-			if template.MinimumRancherVersion != "" {
-				//check that this template can be returned for this rancherVersion
-				isLTE, err := isMinRancherVersionLTE(template.MinimumRancherVersion, rancherVersion)
-
-				if err != nil {
-					log.Errorf("Error applying filter minimumRancherVersion_lte with semver %s", err.Error())
-					api.GetApiContext(r).Write(&model.Template{})
-					return
-				}
-
-				if !isLTE {
-					log.Debugf("Cannot return this template since minimumRancherVersion is not <= %s", rancherVersion)
-					api.GetApiContext(r).Write(&model.Template{})
-					return
-				}
-			}
-		}
-
-		if rancherVersionGte != "" {
-			if template.MaximumRancherVersion != "" {
-				//check that this template can be returned for this rancherVersion
-				isGTE, err := isMaxRancherVersionGTE(template.MaximumRancherVersion, rancherVersionGte)
-
-				if err != nil {
-					log.Errorf("Error applying filter maximumRancherVersion_gte with semver %s", err.Error())
-					api.GetApiContext(r).Write(&model.Template{})
-					return
-				}
-
-				if !isGTE {
-					log.Debugf("Cannot return this template since maximumRancherVersion is not >= %s", rancherVersionGte)
-					api.GetApiContext(r).Write(&model.Template{})
-					return
-				}
-			}
-		}
-
 		template.Type = "templateVersion"
 		template.VersionLinks = PopulateTemplateLinks(r, template)
 		upgradeInfo := GetUpgradeInfo(r, template.Path)
