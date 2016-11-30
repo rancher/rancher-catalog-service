@@ -273,3 +273,45 @@ def test_v2_upgrade(client):
         if len(versionUrlsMap) > 0:
             versionsArray = ["1.0.0", "2.0.0", "3.0.0", "4.0.0"]
             assert sorted(versionUrlsMap.keys()) == versionsArray
+
+
+def test_upgrade_filters(client):
+    templates = client.list_template(catalogId='rancher')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'Kubernetes' \
+                    and templates[i].templateBase == 'infra':
+                versionUrlsMap = templates[i].versionLinks
+        assert len(versionUrlsMap) == 12
+
+    filter = "v1.2.0-pre4-rc10"
+    templates = client.list_template(catalogId='rancher',
+                                     maximumRancherVersion_gte=filter,
+                                     minimumRancherVersion_lte=filter)
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'Kubernetes' \
+                    and templates[i].templateBase == 'infra':
+                versionUrlsMap = templates[i].versionLinks
+        assert len(versionUrlsMap) == 1
+        assert "v1.4.6-rancher1" in versionUrlsMap
+
+    templates = client.list_template(catalogId='rancher')
+    if len(templates) > 0:
+        for i in range(len(templates)):
+            if templates[i].name == 'Kubernetes' \
+                    and templates[i].templateBase == 'infra':
+                versionUrlsMap = templates[i].versionLinks
+        for key in versionUrlsMap.keys():
+            if key == "v1.2.4-rancher10":
+                url_to_try = versionUrlsMap[key]
+                response = requests. \
+                    get(url_to_try +
+                        '?minimumRancherVersion_lte=v1.2.0-pre4-rc10&'
+                        'maximumRancherVersion_gte=v1.2.0-pre4-rc10')
+                assert response is not 404
+                response_json = response.json()
+                upgradeUrls = response_json. \
+                    get(unicode('upgradeVersionLinks'))
+                assert len(upgradeUrls) == 1
+                assert "v1.4.6-rancher1" in upgradeUrls
