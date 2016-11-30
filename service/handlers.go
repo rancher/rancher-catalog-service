@@ -357,11 +357,13 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.RawQuery != "" && strings.EqualFold("image", r.URL.RawQuery) {
+		callToRead(catalogID, templateID, versionID, w, r)
 		loadFile(catalogID, templateID, versionID, manager.PathToImage, w, r)
 		return
 	}
 
 	if r.URL.RawQuery != "" && strings.EqualFold("readme", r.URL.RawQuery) {
+		callToRead(catalogID, templateID, versionID, w, r)
 		loadFile(catalogID, templateID, versionID, manager.PathToReadme, w, r)
 		return
 	}
@@ -371,6 +373,7 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 	} else {
 		loadTemplateMetadata(catalogID, templateID, w, r)
 	}
+
 }
 
 //loadTemplateMetadata returns template metadata for the provided templateId
@@ -411,6 +414,21 @@ func loadTemplateMetadata(catalogID string, templateID string, w http.ResponseWr
 		log.Debugf("Cannot find metadata for template: %s", path)
 		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find metadata for template: %s", tempID))
 	}
+}
+
+func callToRead(catalogID string, templateID string, versionID string, w http.ResponseWriter, r *http.Request) {
+	path := catalogID + "/" + templateID + "/" + versionID
+	log.Debugf("Request to load  template version: %s", path)
+	rancherVersion := r.URL.Query().Get("minimumRancherVersion_lte")
+	if rancherVersion != "" {
+		log.Debugf("and if minimumRancherVersion <= %s", rancherVersion)
+	}
+	rancherVersionGte := r.URL.Query().Get("maximumRancherVersion_gte")
+	if rancherVersionGte != "" {
+		log.Debugf("and if maximumRancherVersion >= %s", rancherVersionGte)
+	}
+
+	manager.ReadTemplateVersion(catalogID, templateID, versionID)
 }
 
 //loadTemplateVersion returns template version details for the provided templateId/versionId
