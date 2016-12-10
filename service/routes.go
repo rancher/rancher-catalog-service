@@ -66,6 +66,10 @@ func NewRouter() *mux.Router {
 	question := schemas.AddType("question", model.Question{})
 	question.CollectionMethods = []string{}
 
+	// Output
+	output := schemas.AddType("output", model.Output{})
+	output.CollectionMethods = []string{}
+
 	// Template
 	template := schemas.AddType("template", model.Template{})
 	refreshAction := client.Action{}
@@ -82,13 +86,19 @@ func NewRouter() *mux.Router {
 	delete(template.ResourceFields, "readmeLink")
 	delete(template.ResourceFields, "projectURL")
 	delete(template.ResourceFields, "version")
+	f1 := template.ResourceFields["output"]
+	f1.Type = "output"
+	template.ResourceFields["output"] = f1
 
 	// Template Version
 	templateVersion := schemas.AddType("templateVersion", model.Template{})
 	templateVersion.CollectionMethods = []string{}
-	f := templateVersion.ResourceFields["questions"]
-	f.Type = "array[question]"
-	templateVersion.ResourceFields["questions"] = f
+	f2 := templateVersion.ResourceFields["questions"]
+	f2.Type = "array[question]"
+	templateVersion.ResourceFields["questions"] = f2
+	f3 := templateVersion.ResourceFields["output"]
+	f3.Type = "output"
+	templateVersion.ResourceFields["output"] = f3
 
 	// Catalog
 	catalog := schemas.AddType("catalog", manager.Catalog{})
