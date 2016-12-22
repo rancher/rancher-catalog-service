@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,17 +19,6 @@ import (
 
 type arrayFlags []string
 
-//CatalogInput stores catalogs accepted from JSON file
-type CatalogInput struct {
-	URL    string `json:"url"`
-	Branch string `json:"branch"`
-}
-
-//ConfigFileFields stores catalogs
-type ConfigFileFields struct {
-	Catalogs map[string]CatalogInput
-}
-
 func (i *arrayFlags) String() string {
 	return fmt.Sprint(*i)
 }
@@ -45,7 +33,7 @@ var (
 	logFile         = flag.String("logFile", "", "Log file")
 	debug           = flag.Bool("debug", false, "Debug")
 	validate        = flag.Bool("validate", false, "Validate catalog yaml and exit")
-	configFile      = flag.String("configFile", "", "Config file")
+	configFile      = flag.String("configFile", "", "Config file (takes precedence over -catalogUrl when both are specified)")
 
 	// Port is the listen port of the HTTP server
 	Port              = flag.Int("port", 8088, "HTTP listen port")
@@ -65,11 +53,6 @@ var (
 
 	catalogURL     arrayFlags
 	commandLineURL arrayFlags
-
-	catalogURLBranch string
-
-	//URLBranchMap aps repo url to branch
-	URLBranchMap map[string]string
 
 	reloadChan = make(chan chan error)
 )
@@ -93,55 +76,18 @@ func WatchSignals() {
 
 //GetCommandLine parses the command line args
 func GetCommandLine() {
-	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id=repo_url. Specify the flag multiple times for multiple repos")
-
+	flag.Var(&catalogURL, "catalogUrl", "git repo url in the form repo_id=repo_url. Specify the flag multiple times for multiple repos (or comma-delimited)")
 	flag.Parse()
+
 	commandLineURL = catalogURL
 	SetEnv()
 }
 
 //SetEnv parses the command line args and sets the necessary variables
 func SetEnv() {
-
-	catalogURL = catalogURL[:0]
 	catalogURL = commandLineURL
 
-	var URLBranchMap = make(map[string]string)
-	var configFields = ConfigFileFields{}
-
-	//NEW CODE
-	// If catalog provided through command line
-	if len(catalogURL) > 0 {
-		for i := 0; i < len(catalogURL); i++ {
-			obj := CatalogInput{}
-			obj.URL = catalogURL[i]
-			obj.Branch = "master"
-			URLBranchMap[obj.URL] = obj.Branch
-		}
-	}
-
-	if *configFile != "" {
-		libraryContent, err := ioutil.ReadFile(*configFile)
-		if err != nil {
-			log.Debugf("JSON file does not exist, continuing for command line URLs")
-		} else {
-			err = json.Unmarshal(libraryContent, &configFields)
-			if err != nil {
-				log.Errorf("JSON data format invalid, error : %v\n", err)
-			}
-
-			for key, value := range configFields.Catalogs {
-				if (CatalogInput{} != value) {
-					if value.Branch == "" {
-						value.Branch = "master"
-					}
-					value.URL = key + "=" + value.URL
-					catalogURL = append(catalogURL, value.URL)
-					URLBranchMap[value.URL] = value.Branch
-				}
-			}
-		}
-	}
+	config := newConfig(catalogURL, *configFile)
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)
@@ -152,13 +98,12 @@ func SetEnv() {
 	} else {
 		//Code to delete non-embedded catalogs
 		setCatalogDirectories := make(map[string]bool)
-		for _, cat := range catalogURL {
-			catalog := strings.Split(cat, "=")[0]
-			setCatalogDirectories[catalog] = true
+		for id := range config.Catalogs {
+			setCatalogDirectories[id] = true
 		}
 		//get all subdirs under catalogRoot, if they are not part of catalogDirectories then rm -rf
 		clonedCatalogDirectories, _ := ioutil.ReadDir(CatalogRootDir)
-		log.Debugf("Removing deleted catalogs\n")
+		log.Debug("Removing deleted catalogs")
 		for _, dir := range clonedCatalogDirectories {
 			clonedCatalog := dir.Name()
 			if !setCatalogDirectories[clonedCatalog] {
@@ -168,6 +113,8 @@ func SetEnv() {
 					err = os.RemoveAll(path.Join(CatalogRootDir, clonedCatalog))
 					if err != nil {
 						log.Errorf("Error %v removing directory %s", err, clonedCatalog)
+					} else {
+						log.Debugf("Removed catalog %v", clonedCatalog)
 					}
 				}
 			}
@@ -186,7 +133,7 @@ func SetEnv() {
 		FullTimestamp: true,
 	}
 	log.SetFormatter(textFormatter)
-	if catalogURL != nil {
+	if len(config.Catalogs) > 0 {
 		if len(CatalogsCollection) == 0 {
 			CatalogsCollection = make(map[string]*Catalog)
 		}
@@ -194,44 +141,10 @@ func SetEnv() {
 		PathToImage = make(map[string]string)
 		PathToReadme = make(map[string]string)
 
-		defaultFound := false
-
-		for _, value := range catalogURL {
-			catalogURLBranch = URLBranchMap[value]
-
-			value = strings.TrimSpace(value)
-			if value != "" {
-				urls := strings.Split(value, ",")
-				for _, singleURL := range urls {
-					tokens := strings.Split(singleURL, "=")
-					if len(tokens) == 1 {
-						//add a default catalogName
-						if defaultFound {
-							log.Fatalf("Please specify a catalog name for %s", tokens[0])
-						}
-						defaultFound = true
-						tokens = append(tokens, tokens[0])
-						tokens[0] = "library"
-					}
-					newCatalog := Catalog{}
-					newCatalog.CatalogID = tokens[0]
-					url := tokens[1]
-					index := strings.Index(tokens[1], "://")
-					if index != -1 {
-						//lowercase the scheme
-						url = strings.ToLower(tokens[1][:index]) + tokens[1][index:]
-					}
-					if catalogURLBranch != "" {
-						newCatalog.URLBranch = catalogURLBranch
-					}
-					newCatalog.URL = url
-					refChan := make(chan int, 1)
-					newCatalog.refreshReqChannel = &refChan
-					newCatalog.catalogRoot = CatalogRootDir + tokens[0]
-					UpdatedCatalogsCollection[tokens[0]] = &newCatalog
-					log.Infof("Using catalog %s=%s", tokens[0], url)
-				}
-			}
+		for id, value := range config.Catalogs {
+			newCatalog := value.toCatalog(id, config.AccessToken.String())
+			UpdatedCatalogsCollection[id] = newCatalog
+			log.Infof("Using catalog %s=%s", id, value.URL)
 		}
 		CatalogsCollection = UpdatedCatalogsCollection
 	} else {

@@ -282,7 +282,7 @@ def test_upgrade_filters(client):
             if templates[i].name == 'Kubernetes' \
                     and templates[i].templateBase == 'infra':
                 versionUrlsMap = templates[i].versionLinks
-        assert len(versionUrlsMap) == 12
+        assert len(versionUrlsMap) >= 13
 
     filter = "v1.2.0-pre4-rc10"
     templates = client.list_template(catalogId='rancher',
@@ -293,7 +293,7 @@ def test_upgrade_filters(client):
             if templates[i].name == 'Kubernetes' \
                     and templates[i].templateBase == 'infra':
                 versionUrlsMap = templates[i].versionLinks
-        assert len(versionUrlsMap) == 1
+        assert len(versionUrlsMap) >= 1
         assert "v1.4.6-rancher1" in versionUrlsMap
 
     templates = client.list_template(catalogId='rancher')
@@ -313,5 +313,5 @@ def test_upgrade_filters(client):
                 response_json = response.json()
                 upgradeUrls = response_json. \
                     get(unicode('upgradeVersionLinks'))
-                assert len(upgradeUrls) == 1
+                assert len(upgradeUrls) >= 1
                 assert "v1.4.6-rancher1" in upgradeUrls
