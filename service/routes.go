@@ -66,6 +66,8 @@ func NewRouter() *mux.Router {
 	question := schemas.AddType("question", model.Question{})
 	question.CollectionMethods = []string{}
 
+	schemas.AddType("output", model.Output{})
+
 	// Template
 	template := schemas.AddType("template", model.Template{})
 	refreshAction := client.Action{}

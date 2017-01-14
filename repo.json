@@ -1,4 +1,4 @@
- {
+{
   "catalogs": {
     "library": {
       "url": "https://github.com/rancher/rancher-catalog.git",

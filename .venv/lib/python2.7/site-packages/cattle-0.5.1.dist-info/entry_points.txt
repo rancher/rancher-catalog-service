@@ -1,0 +1,3 @@
+[console_scripts]
+cattle = cattle:_main
+

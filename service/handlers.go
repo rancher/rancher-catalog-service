@@ -57,7 +57,7 @@ func GetCatalog(w http.ResponseWriter, r *http.Request) {
 		catalog.Links["self"] = URLEncoded(apiContext.UrlBuilder.ReferenceByIdLink("catalog", catalog.Id))
 		apiContext.Write(&catalog)
 	} else {
-		log.Debugf("Cannot find catalog by catalogID: %s", catalogID)
+		log.Infof("Cannot find catalog by catalogID: %s", catalogID)
 		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find catalog by catalogID: %s", catalogID))
 	}
 
@@ -352,7 +352,7 @@ func LoadTemplateDetails(w http.ResponseWriter, r *http.Request) {
 		templateID = pathTokens[1]
 		versionID = pathTokens[2]
 	} else {
-		log.Debugf("Cannot find metadata for template Id: %s", templateIDString)
+		log.Infof("Cannot find metadata for template Id: %s", templateIDString)
 		ReturnHTTPError(w, r, http.StatusNotFound, fmt.Sprintf("Cannot find metadata for template Id: %s", templateIDString))
 	}
 

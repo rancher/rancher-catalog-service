@@ -1,0 +1,3 @@
+[console_scripts]
+gdapi = gdapi:_main
+
