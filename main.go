@@ -17,6 +17,7 @@ func main() {
 	manager.GetCommandLine()
 
 	go manager.Init()
+	manager.StartCatalogBackgroundPoll()
 	manager.WatchSignals()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *manager.Port), &handler))
 }

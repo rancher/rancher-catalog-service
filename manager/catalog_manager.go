@@ -251,12 +251,10 @@ func Init() {
 	for _, catalog := range CatalogsCollection {
 		catalog.pullCatalog()
 	}
-
-	//start a background timer to pull from the Catalog periodically
-	startCatalogBackgroundPoll()
 }
 
-func startCatalogBackgroundPoll() {
+//StartCatalogBackgroundPoll starts a background timer to pull from the Catalog periodically
+func StartCatalogBackgroundPoll() {
 	ticker := time.NewTicker(time.Duration(*refreshInterval) * time.Second)
 	go func() {
 		for t := range ticker.C {
