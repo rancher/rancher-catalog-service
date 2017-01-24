@@ -276,42 +276,39 @@ def test_v2_upgrade(client):
 
 
 def test_upgrade_filters(client):
-    templates = client.list_template(catalogId='rancher')
+    templates = client.list_template(catalogId='qa-catalog')
     if len(templates) > 0:
         for i in range(len(templates)):
-            if templates[i].name == 'Kubernetes' \
-                    and templates[i].templateBase == 'infra':
+            if templates[i].id == unicode('qa-catalog:many-versions'):
                 versionUrlsMap = templates[i].versionLinks
-        assert len(versionUrlsMap) == 12
+        assert len(versionUrlsMap) == 15
 
-    filter = "v1.2.0-pre4-rc10"
-    templates = client.list_template(catalogId='rancher',
+    filter = "v2.2.0"
+    templates = client.list_template(catalogId='qa-catalog',
                                      maximumRancherVersion_gte=filter,
                                      minimumRancherVersion_lte=filter)
     if len(templates) > 0:
         for i in range(len(templates)):
-            if templates[i].name == 'Kubernetes' \
-                    and templates[i].templateBase == 'infra':
+            if templates[i].id == unicode('qa-catalog:many-versions'):
                 versionUrlsMap = templates[i].versionLinks
         assert len(versionUrlsMap) == 1
-        assert "v1.4.6-rancher1" in versionUrlsMap
+        assert "1.0.14" in versionUrlsMap
 
-    templates = client.list_template(catalogId='rancher')
+    templates = client.list_template(catalogId='qa-catalog')
     if len(templates) > 0:
         for i in range(len(templates)):
-            if templates[i].name == 'Kubernetes' \
-                    and templates[i].templateBase == 'infra':
+            if templates[i].id == unicode('qa-catalog:many-versions'):
                 versionUrlsMap = templates[i].versionLinks
         for key in versionUrlsMap.keys():
-            if key == "v1.2.4-rancher10":
+            if key == "1.0.12":
                 url_to_try = versionUrlsMap[key]
                 response = requests. \
                     get(url_to_try +
-                        '?minimumRancherVersion_lte=v1.2.0-pre4-rc10&'
-                        'maximumRancherVersion_gte=v1.2.0-pre4-rc10')
+                        '?minimumRancherVersion_lte=v2.2.0&'
+                        'maximumRancherVersion_gte=v2.2.0')
                 assert response is not 404
                 response_json = response.json()
                 upgradeUrls = response_json. \
                     get(unicode('upgradeVersionLinks'))
                 assert len(upgradeUrls) == 1
-                assert "v1.4.6-rancher1" in upgradeUrls
+                assert "1.0.14" in upgradeUrls

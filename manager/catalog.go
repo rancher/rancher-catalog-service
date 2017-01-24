@@ -238,7 +238,7 @@ func (cat *Catalog) refreshCatalog() {
 			cat.metadata = make(map[string]model.Template)
 			filepath.Walk(cat.catalogRoot, cat.walkCatalog)
 		} else {
-			log.Debugf("Will not refresh the catalog since Pull Catalog faced error: %v", err)
+			log.Infof("Will not refresh the catalog since Pull Catalog faced error: %v", err)
 		}
 		<-*cat.refreshReqChannel
 	default:
