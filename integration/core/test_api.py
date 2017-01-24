@@ -281,7 +281,6 @@ def test_upgrade_filters(client):
         for i in range(len(templates)):
             if templates[i].id == unicode('qa-catalog:many-versions'):
                 versionUrlsMap = templates[i].versionLinks
-        assert len(versionUrlsMap) == 15
 
     filter = "v2.2.0"
     templates = client.list_template(catalogId='qa-catalog',
