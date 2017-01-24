@@ -311,6 +311,7 @@ func GetCatalog(catalogID string) (Catalog, bool) {
 		catalog.Message = cat.Message
 		catalog.LastUpdated = cat.LastUpdated
 		catalog.CatalogLink = cat.CatalogID + "/templates"
+		catalog.Etags = cat.Etags
 	}
 	return catalog, ok
 }
