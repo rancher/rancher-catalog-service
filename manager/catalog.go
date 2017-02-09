@@ -206,6 +206,8 @@ func (cat *Catalog) pullCatalog() error {
 
 	var e *exec.Cmd
 	e = exec.Command("git", "-C", cat.catalogRoot, "pull", "-r", "origin", cat.URLBranch)
+	e.Stderr = os.Stderr
+	e.Stdout = os.Stdout
 
 	err := e.Run()
 	if err != nil {
