@@ -1,8 +1,0 @@
-#!/bin/bash
-set -e
-
-. ./scripts/common
-
-mkdir -p $(dirname $BIN)
-echo Building $BIN
-go build -ldflags "-linkmode external -extldflags -static -s" -o $BIN $MAIN
